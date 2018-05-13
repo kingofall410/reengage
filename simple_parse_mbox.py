@@ -1,6 +1,8 @@
 import mailbox, re, random
 import dateutil.parser
 from models import Endpoint, CustomHeader, Message
+import networkx as nx
+import matplotlib.pyplot as plt
 
 ################################################################################
 def parse_endpoints(endpoint_string):
@@ -13,18 +15,19 @@ def parse_endpoints(endpoint_string):
         endpoint_addresses = [re.search("[\w\.'-]+@[\w\.-]+\.\w+", str).group().strip() for str in endpoint_strings]
         endpoint_names = [re.match('([^<]+)', str).group(0).strip('" \n\t') for str in endpoint_strings]
 
-        print("----------------------------------")
-        print(endpoint_strings)
-        print("Parsed Addresses:", endpoint_addresses)
-        print("Parsed Names:", endpoint_names)
+        #print("----------------------------------")
+        #print(endpoint_strings)
+        #print("Parsed Addresses:", endpoint_addresses)
+        #print("Parsed Names:", endpoint_names)
         return endpoint_addresses, endpoint_names
     else:
         return None, None
 
 ################################################################################
-def parse(filename='..\\data\\enron\\processed\\small.mbox'):
+def parse(filename='..\\data\\enron\\processed\\allen-p.mbox'):
 
     messages = []
+    endpoints = []
 
     input = mailbox.mbox(filename)
     for message in input:
@@ -35,7 +38,8 @@ def parse(filename='..\\data\\enron\\processed\\small.mbox'):
             #Create Sender Endpoint
             sender_add, sender_name = parse_endpoints(message['From'])
             if (sender_add and sender_name):
-                sendEnd = Endpoint(address=sender_add[0], name=sender_name[0])
+
+                sender = Endpoint.get_or_create(endpoints, sender_add[0], sender_name[0])
 
             #Create Message object
             id = message['Message-ID']
@@ -47,7 +51,7 @@ def parse(filename='..\\data\\enron\\processed\\small.mbox'):
             subject = message['Subject']
             date = dateutil.parser.parse(message['Date'])
             body = message.get_payload()
-            mess = Message(id=id, sender=sendEnd, subject=subject, datetime=date, body=body, flatmbox=str(message))
+            mess = Message(id=id, sender=sender, subject=subject, datetime=date, body=body, flatmbox=str(message))
 
             #Add receiver Endpoints
             recipients_add, recipients_name = parse_endpoints(message['To'])
@@ -55,8 +59,8 @@ def parse(filename='..\\data\\enron\\processed\\small.mbox'):
                 for (recipient_add, recipient_name) in zip(recipients_add, recipients_name):
 
                     #print("*"+recipient_add+"*", recipient_name)
-                    recEnd = Endpoint(address=recipient_add, name=recipient_name)
-                    mess.addRecipient(recEnd)
+                    receiver = Endpoint.get_or_create(endpoints, recipient_add, recipient_name)
+                    mess.addRecipient(receiver)
 
             #get all custom headers and save as strings
             headers = message.items()
@@ -68,13 +72,30 @@ def parse(filename='..\\data\\enron\\processed\\small.mbox'):
             #add to the list
             messages.append(mess)
 
-    return messages
+    return messages, endpoints
 
 ################################################################################
-messages = parse()
+def build_graph(messages, endpoints):
+    G = nx.MultiDiGraph()
+    G.add_nodes_from(endpoints)
+    for message in messages:
+        for receiver in message.receivers:
+            G.add_edge(message.sender, receiver)
 
+    nx.draw(G, with_labels=True)
+    plt.show()
+################################################################################
+messages, eps = parse()
+build_graph(messages, eps)
 #random tests
+'''
 print(messages[0].sender.address)
 print(len(messages))
 print (messages[random.randint(0, len(messages))])
 print (messages[random.randint(0, len(messages))].flatmbox)
+
+print("*********************")
+for ep in eps:
+    print (str(ep))
+print("*********************")
+'''
