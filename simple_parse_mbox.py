@@ -24,11 +24,11 @@ def parse_endpoints(endpoint_string):
         return None, None
 
 ################################################################################
-def parse(filename='..\\data\\enron\\processed\\allen-p.mbox'):
+def parse(filename):
 
     messages = []
     endpoints = []
-
+    print(filename)
     input = mailbox.mbox(filename)
     for message in input:
 
@@ -36,7 +36,7 @@ def parse(filename='..\\data\\enron\\processed\\allen-p.mbox'):
         if (message['From']):
 
             #Create Sender Endpoint
-            sender_add, sender_name = parse_endpoints(message['From'])
+            sender_add, sender_name = parse_endpoints(  message['From'])
             if (sender_add and sender_name):
 
                 sender = Endpoint.get_or_create(endpoints, sender_add[0], sender_name[0])
@@ -75,18 +75,99 @@ def parse(filename='..\\data\\enron\\processed\\allen-p.mbox'):
     return messages, endpoints
 
 ################################################################################
-def build_graph(messages, endpoints):
-    G = nx.MultiDiGraph()
-    G.add_nodes_from(endpoints)
+def build_graph(messages, endpoints, is_show_graph):
+    G = nx.DiGraph()
+    #print(str(endpoints[0]))
+    #print(list(endpoints))
+    for endpoint in endpoints:
+        G.add_node(endpoint)
     for message in messages:
         for receiver in message.receivers:
-            G.add_edge(message.sender, receiver)
+            G.add_edge(message.sender, receiver, weight=str(G.number_of_edges(message.sender, receiver)+1))
 
-    nx.draw(G, with_labels=True)
-    plt.show()
+    if is_show_graph:
+        nx.draw(G, with_labels=True)
+        plt.show()
+    return G
 ################################################################################
-messages, eps = parse()
-build_graph(messages, eps)
+'''
+def find_node(graph, emailaddress ):
+    for node in graph.nodes:
+        if(str(node) == emailaddress):
+            result = node
+    return result'''
+################################################################################
+#TODO: Probably a more pythonic way to do this when I'm thinking clearly
+def total_edge_weight(graph, from_node, to_nodes):
+    result = 0
+    for node in to_nodes:
+        if graph.has_edge(from_node, node):
+            result += graph.number_of_edges(from_node, node)
+        if graph.has_edge(node, from_node):
+            result += graph.number_of_edges(node, from_node)
+    #print(from_node + ": " + str(result))
+    return result
+
+################################################################################
+def parse_and_vis(filename='..\\data\\enron\\processed\\small.mbox', visualize=False):
+
+    messages, eps = parse(filename)
+
+    #TODO: could be memory concern, but fine for now
+    full_graph = build_graph(messages, eps, visualize)
+    #find distinct subgraphs
+    comps = nx.weakly_connected_components(full_graph)
+
+    #for each distinct subgraph
+    groups_of_friends = set()
+    minsize_comps = 5
+
+    for conn_comp in comps:
+        #if the subgraph is small, it's a friend group
+        if len(conn_comp) <= minsize_comps:
+            groups_of_friends.add(frozenset(conn_comp))
+            print('New conn comp ('+str(len(conn_comp))+'): ', [c.address for c in conn_comp])
+
+        #if the subgraph is large, look for well connected groups within
+        else:
+            for node in conn_comp:
+                friends = {node}
+                candidates = set()
+                winner = node
+
+                #now start adding more people to the group of friends iteratively
+                for i in range(0, minsize_comps - 1):
+                    #add all neighbors of the new node to the candidate set and remove friends already added
+                    candidates |= {*(nx.all_neighbors(full_graph, winner))}
+                    candidates = candidates-friends
+
+                    #add the strongest remaining connection to the friends set
+                    winner = sorted(list(candidates), key=lambda x: total_edge_weight(full_graph, x, friends), reverse=True)[0]
+                    friends.add(winner)
+
+                print('New friend group ('+str(len(friends))+'): ', [f.address for f in friends])
+                groups_of_friends.add(frozenset(friends))
+    print("here", filename, len(messages))
+#uncommnet to run from command line
+#parse_and_vis
+
+#list(nx.all_neighbors(full_graph, start_node)))
+#keep iterating to add friends until we hit a stopping criteria
+##newnode = find_node(full_graph, 'justin.rostant@enron.com')
+#friends = {start_node, newnode}
+#friends = friends.add(newnode)
+#newnode = find_node(full_graph, 'john.griffith@enron.com')
+#friends.add(newnode)
+#print(friends)
+#newlist = sorted(ut, key=lambda x: x.count, reverse=True)
+
+#plot the graph.
+
+
+
+
+
+
 #random tests
 '''
 print(messages[0].sender.address)
