@@ -126,7 +126,7 @@ def parse_and_vis(filename='..\\data\\enron\\processed\\small.mbox', visualize=F
         #if the subgraph is small, it's a friend group
         if len(conn_comp) <= minsize_comps:
             groups_of_friends.add(frozenset(conn_comp))
-            print('New conn comp ('+str(len(conn_comp))+'): ', [c.address for c in conn_comp])
+            #print('New conn comp ('+str(len(conn_comp))+'): ', [c.address for c in conn_comp])
 
         #if the subgraph is large, look for well connected groups within
         else:
@@ -145,10 +145,12 @@ def parse_and_vis(filename='..\\data\\enron\\processed\\small.mbox', visualize=F
                     winner = sorted(list(candidates), key=lambda x: total_edge_weight(full_graph, x, friends), reverse=True)[0]
                     friends.add(winner)
 
-                print('New friend group ('+str(len(friends))+'): ', [f.address for f in friends])
+                #print('New friend group ('+str(len(friends))+'): ', [f.address for f in friends])
                 groups_of_friends.add(frozenset(friends))
-    #gof = sorted(groups_of_friends))
-
+                
+    gof = sorted(list(groups_of_friends), key=lambda x: len(x), reverse=True )
+    for group in gof:
+        print('Friend group ('+str(len(group))+'): ', [f.address for f in group])
 #uncommnet to run from command line
 #parse_and_vis
 
