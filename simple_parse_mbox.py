@@ -147,7 +147,8 @@ def parse_and_vis(filename='..\\data\\enron\\processed\\small.mbox', visualize=F
 
                 print('New friend group ('+str(len(friends))+'): ', [f.address for f in friends])
                 groups_of_friends.add(frozenset(friends))
-    print("here", filename, len(messages))
+    #gof = sorted(groups_of_friends))
+
 #uncommnet to run from command line
 #parse_and_vis
 

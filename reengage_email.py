@@ -1,6 +1,6 @@
 import sys, os
 import convert_enron
-import edwins_parse_mbox
+import simple_parse_mbox
 import copy
 
 def parse_commandline(cmdline):
@@ -62,4 +62,4 @@ options = parse_commandline(cmdline)
 if options['convert']:
     convert_enron.convert(options['infile'], options['conversion_out'])
 if options['parse']:
-    edwins_parse_mbox.parse_and_vis(options['conversion_out'] if options['convert'] else options['infile'], options['visualize'])
+    simple_parse_mbox.parse_and_vis(options['conversion_out'] if options['convert'] else options['infile'], options['visualize'])
