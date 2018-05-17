@@ -1,11 +1,9 @@
-import re
-import email
+import re, email, os, sys, logging
 from time import asctime
-import os
-import sys
 from dateutil.parser import parse # pip install python_dateutil
+from datetime import datetime
 
-def convert(maildir='..\\data\\enron\\raw\\maildir\\', outfilename='..\\data\\enron\\processed\\enron.mbox'):
+def convert(maildir, outfilename):
 
     # Create a file handle that we'll be writing into...
     outfile = open(outfilename, 'w')
@@ -34,6 +32,7 @@ def convert(maildir='..\\data\\enron\\raw\\maildir\\', outfilename='..\\data\\en
             outfile.write(msg.as_string(unixfrom=True) + "\n\n")
 
     outfile.close()
+    return outfile
 
 
 #run directly from commandline

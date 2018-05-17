@@ -1,4 +1,4 @@
-import mailbox, re, random
+import mailbox, re, random, logging
 import dateutil.parser
 from models import Endpoint, CustomHeader, Message
 
@@ -26,7 +26,7 @@ def parse(filename='..\\data\\enron\\processed\\small.mbox'):
 
     messages = []
     endpoints = []
-    print(filename)
+    
     input = mailbox.mbox(filename)
     for message in input:
 
@@ -42,9 +42,9 @@ def parse(filename='..\\data\\enron\\processed\\small.mbox'):
             #Create Message object
             id = message['Message-ID']
             if (id):
-                print("********* "+id)
+                logging.debug("********* "+id)
             else:
-                print("********* "+str(message))
+                logging.debug("********* "+str(message))
 
             subject = message['Subject']
             date = dateutil.parser.parse(message['Date'])
@@ -56,7 +56,6 @@ def parse(filename='..\\data\\enron\\processed\\small.mbox'):
             if (recipients_add and recipients_name):
                 for (recipient_add, recipient_name) in zip(recipients_add, recipients_name):
 
-                    #print("*"+recipient_add+"*", recipient_name)
                     receiver = Endpoint.get_or_create(endpoints, recipient_add, recipient_name)
                     mess.addRecipient(receiver)
 

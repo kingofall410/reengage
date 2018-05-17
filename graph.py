@@ -1,3 +1,5 @@
+import logging
+
 from models import Endpoint, CustomHeader, Message
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -5,8 +7,7 @@ import matplotlib.pyplot as plt
 ################################################################################
 def build_graph(messages, endpoints, is_show_graph):
     G = nx.DiGraph()
-    #print(str(endpoints[0]))
-    #print(list(endpoints))
+
     for endpoint in endpoints:
         G.add_node(endpoint)
 
@@ -28,7 +29,7 @@ def total_edge_weight(graph, from_node, to_nodes):
             result += graph.number_of_edges(from_node, node)
         if graph.has_edge(node, from_node):
             result += graph.number_of_edges(node, from_node)
-    #print(from_node + ": " + str(result))
+    #logging.debug("%s: %d", from_node.address,result) -- careful, this seems to log an insane amount of data for some reason
     return result
 
 ################################################################################
@@ -68,4 +69,4 @@ def build_and_analyze(messages, eps, visualize=False):
 
     gof = sorted(list(groups_of_friends), key=lambda x: len(x), reverse=True )
     for group in gof:
-        print('Friend group ('+str(len(group))+'): ', [f.address for f in group])
+        logging.info('Friend group (%s): %s', str(len(group)), str([f.address for f in group]))
