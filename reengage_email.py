@@ -1,12 +1,14 @@
 import sys, os
 import convert_enron
-import simple_parse_mbox
+import mbox_parser
+import graph
 import copy
+
+from models import Endpoint, CustomHeader, Message
 
 def parse_commandline(cmdline):
     #remove module name
     cmdline.pop(0)
-
 
     #defaults
     options = {"infile":"",
@@ -62,4 +64,5 @@ options = parse_commandline(cmdline)
 if options['convert']:
     convert_enron.convert(options['infile'], options['conversion_out'])
 if options['parse']:
-    simple_parse_mbox.parse_and_vis(options['conversion_out'] if options['convert'] else options['infile'], options['visualize'])
+    messages, eps = mbox_parser.parse(options['conversion_out'] if options['convert'] else options['infile'])
+    graph.build_and_analyze(messages, eps, options['visualize'])
