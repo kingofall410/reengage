@@ -10,9 +10,11 @@ def parse_endpoints(endpoint_string):
 
         #match each recipient's email address and name
         #TODO:these fail if there's no email address, needs fixed
-        endpoint_addresses = [re.search("[\w\.'-]+@[\w\.-]+\.\w+", str).group().strip() for str in endpoint_strings]
-        endpoint_names = [re.match('([^<]+)', str).group(0).strip('" \n\t') for str in endpoint_strings]
-
+        try:
+            endpoint_addresses = [re.search("[\w\.'-]+@[\w\.-]+\.\w+", str).group().strip() for str in endpoint_strings]
+            endpoint_names = [re.match('([^<]+)', str).group(0).strip('" \n\t') for str in endpoint_strings]
+        except(AttributeError):
+            return None,None
         #print("----------------------------------")
         #print(endpoint_strings)
         #print("Parsed Addresses:", endpoint_addresses)
@@ -26,7 +28,7 @@ def parse(filename='..\\data\\enron\\processed\\small.mbox'):
 
     messages = []
     endpoints = []
-    
+
     input = mailbox.mbox(filename)
     for message in input:
 
