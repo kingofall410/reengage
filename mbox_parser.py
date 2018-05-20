@@ -1,5 +1,9 @@
-import mailbox, re, random, logging
+import mailbox
+import re
+import random
+import logging
 import dateutil.parser
+
 from models import Endpoint, CustomHeader, Message
 
 ################################################################################
@@ -11,14 +15,18 @@ def parse_endpoints(endpoint_string):
         #match each recipient's email address and name
         #TODO:these fail if there's no email address, needs fixed
         try:
-            endpoint_addresses = [re.search("[\w\.'-]+@[\w\.-]+\.\w+", str).group().strip() for str in endpoint_strings]
-            endpoint_names = [re.match('([^<]+)', str).group(0).strip('" \n\t') for str in endpoint_strings]
+            endpoint_addresses = [re.search("[\w\.'-]+@[\w\.-]+\.\w+", str).group().strip()
+                                  for str in endpoint_strings]
+            endpoint_names = [re.match('([^<]+)', str).group(0).strip('" \n\t')
+                              for str in endpoint_strings]
         except(AttributeError):
             return None,None
-        #print("----------------------------------")
-        #print(endpoint_strings)
-        #print("Parsed Addresses:", endpoint_addresses)
-        #print("Parsed Names:", endpoint_names)
+
+        logging.debug("----------------------------------")
+        logging.debug(endpoint_strings)
+        logging.debug("Parsed Addresses: %s", endpoint_addresses)
+        logging.debug("Parsed Names: %s", endpoint_names)
+
         return endpoint_addresses, endpoint_names
     else:
         return None, None
@@ -51,7 +59,8 @@ def parse(filename='..\\data\\enron\\processed\\small.mbox'):
             subject = message['Subject']
             date = dateutil.parser.parse(message['Date'])
             body = message.get_payload()
-            mess = Message(id=id, sender=sender, subject=subject, datetime=date, body=body, flatmbox=str(message))
+            mess = Message(id=id, sender=sender, subject=subject, datetime=date, body=body,
+                           flatmbox=str(message))
 
             #Add receiver Endpoints
             recipients_add, recipients_name = parse_endpoints(message['To'])

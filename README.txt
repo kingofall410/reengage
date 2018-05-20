@@ -12,6 +12,7 @@ OPTIONS
 -o <outfile>: where you want to store the output of an mbox conversion.  By default it will go into "mbox\<infile_directory>"
 -p: run the parser
 -v: show the visualization
+-d: run debug logs
 
 The things you'll use most often are:
 1. py reengage_email.py input.mbox -p -- Just parse the specified mbox file

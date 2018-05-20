@@ -1,8 +1,15 @@
-import re, email, os, sys, logging
+import re
+import email
+import sys
+import os
+import logging
 from time import asctime
 from dateutil.parser import parse # pip install python_dateutil
 from datetime import datetime
 
+import filter
+
+###################################################################################################
 def convert(maildir, outfilename):
 
     # Create a file handle that we'll be writing into...
@@ -24,12 +31,13 @@ def convert(maildir, outfilename):
             _from = re.search(r"From: ([^\n]+)", message_text).groups()[0]
             _date = re.search(r"Date: ([^\n]+)", message_text).groups()[0]
 
-            _date = asctime(parse(_date).timetuple())
+            logging.debug("From: %s, Date: %s", _from, _date)
+            if not filter.filtermatch(_from.strip()):
 
-            msg = email.message_from_string(message_text)
-            msg.set_unixfrom('From %s %s' % (_from, _date))
-
-            outfile.write(msg.as_string(unixfrom=True) + "\n\n")
+                _date = asctime(parse(_date).timetuple())
+                msg = email.message_from_string(message_text)
+                msg.set_unixfrom('From %s %s' % (_from, _date))
+                outfile.write(msg.as_string(unixfrom=True) + "\n\n")
 
     outfile.close()
     return outfile
