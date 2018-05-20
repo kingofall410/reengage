@@ -94,6 +94,7 @@ def main():
     if options['parse']:
         parse_file = options['conversion_out'] if options['convert'] else options['infile']
         messages, eps = mbox_parser.parse(parse_file)
+        print(len(messages))
         graph.build_and_analyze(messages, eps, options['visualize'])
 
 main()

@@ -2,6 +2,7 @@ import mailbox
 import re
 import random
 import logging
+import filter
 import dateutil.parser
 
 from models import Endpoint, CustomHeader, Message
@@ -22,8 +23,6 @@ def parse_endpoints(endpoint_string):
         except(AttributeError):
             return None,None
 
-        logging.debug("----------------------------------")
-        logging.debug(endpoint_strings)
         logging.debug("Parsed Addresses: %s", endpoint_addresses)
         logging.debug("Parsed Names: %s", endpoint_names)
 
@@ -31,7 +30,7 @@ def parse_endpoints(endpoint_string):
     else:
         return None, None
 
-################################################################################
+###################################################################################################
 def parse(filename='..\\data\\enron\\processed\\small.mbox'):
 
     messages = []
@@ -43,41 +42,49 @@ def parse(filename='..\\data\\enron\\processed\\small.mbox'):
         #see if it has a From, if not it's a bad mbox, just skip for now
         if (message['From']):
 
-            #Create Sender Endpoint
-            sender_add, sender_name = parse_endpoints(  message['From'])
-            if (sender_add and sender_name):
-
-                sender = Endpoint.get_or_create(endpoints, sender_add[0], sender_name[0])
-
-            #Create Message object
             id = message['Message-ID']
             if (id):
-                logging.debug("********* "+id)
+                logging.debug("------Found message: %s", id)
             else:
-                logging.debug("********* "+str(message))
+                logging.warning("------No message ID found: %s", str(message))
 
-            subject = message['Subject']
-            date = dateutil.parser.parse(message['Date'])
-            body = message.get_payload()
-            mess = Message(id=id, sender=sender, subject=subject, datetime=date, body=body,
-                           flatmbox=str(message))
-
-            #Add receiver Endpoints
+            sender_add, sender_name = parse_endpoints(message['From'])
             recipients_add, recipients_name = parse_endpoints(message['To'])
-            if (recipients_add and recipients_name):
-                for (recipient_add, recipient_name) in zip(recipients_add, recipients_name):
 
-                    receiver = Endpoint.get_or_create(endpoints, recipient_add, recipient_name)
-                    mess.addRecipient(receiver)
+            #filter out based on from/to
+            filtered_senders = filter.filter_list(sender_add)
+            filtered_recipients = filter.filter_list(recipients_add)
 
-            #get all custom headers and save as strings
-            headers = message.items()
-            for header in headers:
-                if (header[0].startswith('X') or header[0].startswith('x')):
-                    ch = CustomHeader(header_key=header[0], header_value=header[1])
-                    mess.addCH(ch)
+            if filtered_senders and filtered_recipients:
 
-            #add to the list
-            messages.append(mess)
+                #create sender endpoint
+                sender = Endpoint.get_or_create(endpoints, sender_add[0], sender_name[0])
+
+                #Create Message object
+                subject = message['Subject']
+                date = dateutil.parser.parse(message['Date'])
+                body = message.get_payload()
+                mess = Message(id=id, sender=sender, subject=subject, datetime=date, body=body,
+                               flatmbox=str(message))
+
+                #create and add receiver Endpoints
+                if (recipients_add and recipients_name):
+                    for (recipient_add, recipient_name) in zip(recipients_add, recipients_name):
+                        if recipient_add in filtered_recipients:
+                            receiver = Endpoint.get_or_create(endpoints, recipient_add, recipient_name)
+                            mess.addRecipient(receiver)
+
+                #get all custom headers and save as strings
+                headers = message.items()
+                for header in headers:
+                    if (header[0].startswith('X') or header[0].startswith('x')):
+                        ch = CustomHeader(header_key=header[0], header_value=header[1])
+                        mess.addCH(ch)
+
+                #add to the list
+                messages.append(mess)
+                logging.debug("------Message objects added")
+            else:
+                logging.debug("------Message objects not created")
 
     return messages, endpoints

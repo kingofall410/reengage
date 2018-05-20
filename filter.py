@@ -45,3 +45,12 @@ def filtermatch(source):
             return True
 
     return False
+
+###################################################################################################
+#This returns true if ALL sources in the list are filtered out
+def filter_list(sources):
+    return_sources = []
+    if sources:
+        return_sources = [source for source in sources if not filtermatch(source)]
+        
+    return return_sources

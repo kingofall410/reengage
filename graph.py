@@ -83,6 +83,7 @@ def build_and_analyze(messages, eps, visualize=False):
     logging.info("Total number of edges is %s with a total weight of %s", str(total_number_edges), str(total_edges_weight))
     #let's see what the heaviest edges are
     edge_list = sorted(list(full_graph.edges), key=lambda x: full_graph[x[0]][x[1]]['weight'], reverse=True)
+    print (len(edge_list))
     for i in range(0,25):
         edge = edge_list[i]
         logging.info("Edge from %s to %s has weight %s", edge[0], edge[1], full_graph[edge[0]][edge[1]]['weight'])

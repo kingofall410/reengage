@@ -1,3 +1,5 @@
+import logging
+
 class Endpoint():
     def __init__(self, name, address):
         self.name = name
@@ -21,6 +23,7 @@ class Endpoint():
             ep = endpoints[endpoints.index(ep)]
         except(ValueError):#endpoint not in set
             endpoints.append(ep)
+        logging.debug("Endpoint found: %s", address)
         return ep
 
 class Message():
