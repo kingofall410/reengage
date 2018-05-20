@@ -4,18 +4,19 @@ from datetime import datetime
 import convert_enron, graph, mbox_parser
 from models import Endpoint, CustomHeader, Message
 
-#logging = logging.getLogger(__name__)
+#defaults
+options = {"infile":"",
+    "convert":True,
+    "conversion_out":"",
+    "visualize":False,
+    "parse":False,
+    "debug":False}
 
+###################################################################################################
+#logging WILL NOT WORK in this function
 def parse_commandline(cmdline):
     #remove module name
     cmdline.pop(0)
-
-    #defaults
-    options = {"infile":"",
-        "convert":True,
-        "conversion_out":"",
-        "visualize":False,
-        "parse":False}
 
     #input file is required and must be first
     options['infile'] = cmdline.pop(0)
@@ -25,7 +26,7 @@ def parse_commandline(cmdline):
         options['convert'] = False
 
     while cmdline:
-        logging.debug(cmdline)
+
         #pull the - off the option string
         option = cmdline.pop(0)
         if option.startswith("-"):
@@ -48,22 +49,39 @@ def parse_commandline(cmdline):
             elif ch == 'p':
                 options['parse'] = True
 
-    logging.info(options)
+            elif ch == 'd':
+                options['debug'] = True
+
+
     return options
 
+###################################################################################################
 def list_directories(filename):
     print ([name for name in os.listdir(filename)])
 
+###################################################################################################
 def init_logging():
     dt = str(datetime.now()).replace(":", "_")
     formatter = '%(asctime)s - %(levelname)s - %(message)s'
-    logging.basicConfig(filename="logs\\reengage_"+dt+".log", level=logging.DEBUG, format=formatter, datefmt='%m/%d/%Y %I:%M:%S %p')
+    level = logging.DEBUG if options['debug'] else logging.INFO
 
+    logging.basicConfig(filename="logs\\reengage_"+dt+".log", level=level,
+                        format=formatter, datefmt='%m/%d/%Y %I:%M:%S %p')
+
+    #logging tests
+    logging.debug("debug")
+    logging.info("info")
+    logging.warning("warning")
+    logging.critical("critical")
+
+###################################################################################################
 def main():
-    init_logging()
+
     #deepcopy commandlin since another module might need it
     cmdline = copy.deepcopy(sys.argv)
-    options = parse_commandline(cmdline)
+    #parse commandline before setting up logging in order to set debug levels
+    parse_commandline(cmdline)
+    init_logging()
 
     if options['convert']:
         if not options['conversion_out']:
@@ -72,8 +90,10 @@ def main():
             logging.info("Created output file: %s", options['conversion_out'])
 
         convert_enron.convert(options['infile'], options['conversion_out'])
+
     if options['parse']:
-        messages, eps = mbox_parser.parse(options['conversion_out'] if options['convert'] else options['infile'])
+        parse_file = options['conversion_out'] if options['convert'] else options['infile']
+        messages, eps = mbox_parser.parse(parse_file)
         graph.build_and_analyze(messages, eps, options['visualize'])
 
 main()
