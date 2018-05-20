@@ -83,18 +83,30 @@ def main():
     parse_commandline(cmdline)
     init_logging()
 
-    if options['convert']:
-        if not options['conversion_out']:
-            name = options['infile'][(options['infile'].rfind("\\")+1):]
-            options['conversion_out']="mbox\\"+name+".mbox"
-            logging.info("Created output file: %s", options['conversion_out'])
+    #see if the input file exists
+    if os.path.exists(options['infile']):
 
-        convert_enron.convert(options['infile'], options['conversion_out'])
+        if options['convert']:
+            if not options['conversion_out']:
+                name = options['infile'][(options['infile'].rfind("\\")+1):]
+                options['conversion_out']="mbox\\"+name+".mbox"
+                logging.info("Created output file: %s", options['conversion_out'])
 
-    if options['parse']:
-        parse_file = options['conversion_out'] if options['convert'] else options['infile']
-        messages, eps = mbox_parser.parse(parse_file)
-        print(len(messages))
-        graph.build_and_analyze(messages, eps, options['visualize'])
+            convert_enron.convert(options['infile'], options['conversion_out'])
 
+        if options['parse']:
+            parse_file = options['conversion_out'] if options['convert'] else options['infile']
+            messages, eps = mbox_parser.parse(parse_file)
+
+            if (messages):
+                graph.build_and_analyze(messages, eps, options['visualize'])
+            else:
+                errorStr = "FATAL: No messages found: "+parse_file
+                print(errorStr)
+                logging.critical(errorStr)
+
+    else:
+        errorStr = "FATAL: File not found: "+options['infile']
+        print(errorStr)
+        logging.critical(errorStr)
 main()

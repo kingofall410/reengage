@@ -52,5 +52,5 @@ def filter_list(sources):
     return_sources = []
     if sources:
         return_sources = [source for source in sources if not filtermatch(source)]
-        
+
     return return_sources
