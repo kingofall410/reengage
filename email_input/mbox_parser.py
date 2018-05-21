@@ -35,8 +35,10 @@ def parse(filename='..\\data\\enron\\processed\\small.mbox'):
 
     messages = []
     endpoints = []
-
+    bad_message_count = 0
+    filtered_message_count = 0
     input = mailbox.mbox(filename)
+    logging.info("Parser stats: %d Input Messages", len(input))
     for message in input:
 
         #see if it has a From, if not it's a bad mbox, just skip for now
@@ -85,6 +87,11 @@ def parse(filename='..\\data\\enron\\processed\\small.mbox'):
                 messages.append(mess)
                 logging.debug("------Message objects added")
             else:
+                filtered_message_count += 1
                 logging.debug("------Message objects not created")
+        else:
+            bad_message_count +=1
 
+    logging.info("Parser stats: %d Message objects created, %d bad messages, %d filtered messages",
+                 len(messages), bad_message_count, filtered_message_count)
     return messages, endpoints

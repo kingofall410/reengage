@@ -14,7 +14,8 @@ def convert(maildir, outfilename):
 
     # Create a file handle that we'll be writing into...
     outfile = open(outfilename, 'w')
-
+    msg_count = 0
+    filtered_messages = 0
     # Walk the directories and process any folder named 'inbox'
     for (root, dirs, file_names) in os.walk(maildir):
 
@@ -33,12 +34,22 @@ def convert(maildir, outfilename):
 
             logging.debug("From: %s, Date: %s", _from, _date)
             if not filter.filtermatch(_from.strip()):
+                msg_count += 1
 
+                #if (message_text.find("Fournace") >=0):
+                #print(message_text)
+
+
+                message_text = message_text.replace("\nFrom ", "\n>From")
                 _date = asctime(parse(_date).timetuple())
                 msg = email.message_from_string(message_text)
                 msg.set_unixfrom('From %s %s' % (_from, _date))
                 outfile.write(msg.as_string(unixfrom=True) + "\n\n")
+            else:
+                filtered_messages += 1
 
+    logging.info("Conversion stats: %d messages converted, %d messages filtered",
+                 msg_count, filtered_messages)
     outfile.close()
     return outfile
 
