@@ -2,10 +2,10 @@ import mailbox
 import re
 import random
 import logging
-import filter
+from util import filter
 import dateutil.parser
 
-from models import Endpoint, CustomHeader, Message
+from email_input.models import Endpoint, CustomHeader, Message
 
 ################################################################################
 def parse_endpoints(endpoint_string):

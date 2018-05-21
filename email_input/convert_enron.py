@@ -7,7 +7,7 @@ from time import asctime
 from dateutil.parser import parse # pip install python_dateutil
 from datetime import datetime
 
-import filter
+from util import filter
 
 ###################################################################################################
 def convert(maildir, outfilename):

@@ -1,6 +1,6 @@
 import logging
 
-FILTER_FILENAME="filters.cfg"
+FILTER_FILENAME="config\\filters.cfg"
 filters = {'negative': [], 'positive':[]}
 initialized = False
 ###################################################################################################

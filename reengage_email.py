@@ -1,8 +1,10 @@
-import sys, os, copy, logging
+import sys
+import os
+import copy
+import logging
 from datetime import datetime
 
-import convert_enron, graph, mbox_parser
-from models import Endpoint, CustomHeader, Message
+from email_input import convert_enron, graph, mbox_parser
 
 #defaults
 options = {"infile":"",
