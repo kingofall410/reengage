@@ -2,6 +2,7 @@ import mailbox
 import re
 import random
 import logging
+import pickle
 from util import filter
 import dateutil.parser
 
@@ -31,13 +32,15 @@ def parse_endpoints(endpoint_string):
         return None, None
 
 ###################################################################################################
-def parse(filename='..\\data\\enron\\processed\\small.mbox'):
+def parse(infile, outfile):
 
     messages = []
     endpoints = []
     bad_message_count = 0
     filtered_message_count = 0
-    input = mailbox.mbox(filename)
+    input = mailbox.mbox(infile)
+    output = open(outfile, 'wb')
+
     logging.info("Parser stats: %d Input Messages", len(input))
     for message in input:
 
@@ -94,4 +97,12 @@ def parse(filename='..\\data\\enron\\processed\\small.mbox'):
 
     logging.info("Parser stats: %d Message objects created, %d bad messages, %d filtered messages",
                  len(messages), bad_message_count, filtered_message_count)
+
+    pickle.dump((messages, endpoints), output)
+    output.close()
+
     return messages, endpoints
+
+def load_from_pickle(filename):
+    input = open(filename, 'rb')
+    return pickle.load(input)

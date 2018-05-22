@@ -1,5 +1,5 @@
 __pycache__
 *.mbox
 logs/
-mbox/
+data/
 .mboxview

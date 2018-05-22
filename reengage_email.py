@@ -10,8 +10,9 @@ from email_input import convert_enron, graph, mbox_parser
 options = {"infile":"",
     "convert":True,
     "conversion_out":"",
+    "parse":True,
+    "parse_out":"",
     "visualize":False,
-    "parse":False,
     "debug":False}
 
 ###################################################################################################
@@ -26,6 +27,9 @@ def parse_commandline(cmdline):
     #if inputfile ends with mbox, don't convert
     if options['infile'].endswith('.mbox'):
         options['convert'] = False
+    elif options['infile'].endswith('.pickle'):
+        options['convert'] = False
+        options['parse'] = False
 
     while cmdline:
 
@@ -40,20 +44,21 @@ def parse_commandline(cmdline):
         #parse options until one that needs a parameter
         for ch in option:
 
-            if ch == 'o':
+            if ch == 'c':
                 #if this is the last option, look for a parameter
                 if option.endswith(ch) and cmdline and not cmdline[0].startswith("-"):
                     options['conversion_out'] = cmdline.pop(0)
 
+            if ch == 'p':
+                #if this is the last option, look for a parameter
+                if option.endswith(ch) and cmdline and not cmdline[0].startswith("-"):
+                    options['parse_out'] = cmdline.pop(0)
+
             elif ch == 'v':
                 options['visualize'] = True
 
-            elif ch == 'p':
-                options['parse'] = True
-
             elif ch == 'd':
                 options['debug'] = True
-
 
     return options
 
@@ -86,26 +91,36 @@ def main():
     init_logging()
 
     #see if the input file exists
+    #TODO:This all needs refactor
     if os.path.exists(options['infile']):
+
+        #extract name of file without extension
+        name = options['infile'][(options['infile'].rfind("\\")+1):]
+        name = name[name.rfind(".")+1:]
 
         if options['convert']:
             if not options['conversion_out']:
-                name = options['infile'][(options['infile'].rfind("\\")+1):]
-                options['conversion_out']="mbox\\"+name+".mbox"
-                logging.info("Created output file: %s", options['conversion_out'])
+                options['conversion_out']="data\\"+name+".mbox"
+                logging.info("Created conversion output file: %s", options['conversion_out'])
 
             convert_enron.convert(options['infile'], options['conversion_out'])
 
         if options['parse']:
-            parse_file = options['conversion_out'] if options['convert'] else options['infile']
-            messages, eps = mbox_parser.parse(parse_file)
+            if not options['parse_out']:
+                options['parse_out']="data\\"+name+".pickle"
+                logging.info("Created parse output file: %s", options['parse_out'])
 
-            if (messages):
-                graph.build_and_analyze(messages, eps, options['visualize'])
-            else:
-                errorStr = "FATAL: No messages found: "+parse_file
-                print(errorStr)
-                logging.critical(errorStr)
+            parse_input = options['conversion_out'] if options['convert'] else options['infile']
+            messages, eps = mbox_parser.parse(parse_input, options['parse_out'])
+        else:
+            messages, eps = mbox_parser.load_from_pickle(options['infile'])
+
+        if (messages):
+            graph.build_and_analyze(messages, eps, options['visualize'])
+        else:
+            errorStr = "FATAL: No messages found: "+parse_file
+            print(errorStr)
+            logging.critical(errorStr)
 
     else:
         errorStr = "FATAL: File not found: "+options['infile']
