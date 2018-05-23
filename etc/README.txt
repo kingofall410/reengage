@@ -1,7 +1,3 @@
-
-Please create two empty directories in the same place that you place the .py files called "logs" and "data"!!!!
-(I'll fix this tomorrow)
-
 Run with the command py reengage_email.py <inputfilename> [options]
 
 <inputfilename> is required to be the first parameter.  It can be relative (to the location of reengage_email.py) or absolute.

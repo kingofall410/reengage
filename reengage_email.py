@@ -82,45 +82,99 @@ def init_logging():
     logging.critical("critical")
 
 ###################################################################################################
+def init_file_structure():
+    if not os.path.exists("data"):
+        os.makedirs("data")
+
+    if not os.path.exists("logs"):
+        os.makedirs("logs")
+
+###################################################################################################
+def extract_dataset_name():
+    #extract name of file without extension
+    name = options['infile'][(options['infile'].rfind("\\")+1):]
+    dot_index = name.rfind(".")
+    if dot_index >= 0:
+        name = name[:dot_index]
+    logging.info("Using dataset name: %s", name)
+    return name
+
+###################################################################################################
+def convert(dataset_name, convert_input):
+
+    convert_output = ""
+
+    #if we actually need to convert
+    if options['convert']:
+        logging.info("Starting conversion")
+        #if the user has not specified a specific output filename
+        if options['conversion_out']:
+            convert_output = options['conversion_out']
+            logging.info("Using conversion output file: %s", convert_output)
+        else:
+            convert_output = "data\\"+dataset_name+".mbox"
+            logging.info("Created conversion output file: %s", convert_output)
+
+        convert_enron.convert(convert_input, convert_output)
+    else:
+        logging.info("Skipping conversion")
+        convert_output = convert_input
+
+    return convert_output
+
+###################################################################################################
+def parse(dataset_name, parse_input):
+
+    parse_output = ""
+
+    #if we actually need to parse
+    if options['parse']:
+        logging.info("Starting parse")
+        #if the user has not specified a specific output filename
+        if options['parse_out']:
+            parse_output = options['parse_out']
+            logging.info("Using parse output file: %s", parse_output)
+        else:
+            parse_output = "data\\"+dataset_name+".pickle"
+            logging.info("Created parse output file: %s", parse_output)
+
+        messages, eps = mbox_parser.parse(parse_input, parse_output)
+    else:
+        logging.info("Loading from pickle")
+        messages, eps = mbox_parser.load_from_pickle(parse_input)
+
+    return messages, eps
+
+###################################################################################################
+def analyze(messages, eps, is_vis):
+    if (messages):
+        graph.build_and_analyze(messages, eps, is_vis)
+    else:
+        errorStr = "FATAL: No messages found: "+parse_file
+        print(errorStr)
+        logging.critical(errorStr)
+
+###################################################################################################
 def main():
 
     #deepcopy commandlin since another module might need it
     cmdline = copy.deepcopy(sys.argv)
+
+    init_file_structure()
     #parse commandline before setting up logging in order to set debug levels
     parse_commandline(cmdline)
     init_logging()
-
     #see if the input file exists
     #TODO:This all needs refactor
     if os.path.exists(options['infile']):
 
-        #extract name of file without extension
-        name = options['infile'][(options['infile'].rfind("\\")+1):]
-        name = name[name.rfind(".")+1:]
+        dataset_name = extract_dataset_name()
 
-        if options['convert']:
-            if not options['conversion_out']:
-                options['conversion_out']="data\\"+name+".mbox"
-                logging.info("Created conversion output file: %s", options['conversion_out'])
+        convert_filename = options['infile']
+        parse_filename = convert(dataset_name, convert_filename)
+        messages, eps = parse(dataset_name, parse_filename)
 
-            convert_enron.convert(options['infile'], options['conversion_out'])
-
-        if options['parse']:
-            if not options['parse_out']:
-                options['parse_out']="data\\"+name+".pickle"
-                logging.info("Created parse output file: %s", options['parse_out'])
-
-            parse_input = options['conversion_out'] if options['convert'] else options['infile']
-            messages, eps = mbox_parser.parse(parse_input, options['parse_out'])
-        else:
-            messages, eps = mbox_parser.load_from_pickle(options['infile'])
-
-        if (messages):
-            graph.build_and_analyze(messages, eps, options['visualize'])
-        else:
-            errorStr = "FATAL: No messages found: "+parse_file
-            print(errorStr)
-            logging.critical(errorStr)
+        analyze(messages, eps, options['visualize'])
 
     else:
         errorStr = "FATAL: File not found: "+options['infile']
