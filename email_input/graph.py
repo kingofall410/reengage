@@ -91,11 +91,9 @@ def find_candidate(graph, group, candidates, is_remove):
 
 def top_communicators(full_graph):
 #how connected is this graph really. Is there 2 way communication, what are reasonable amounts.
-    values = list(np.zeros(100000))
-    i = 0
+    values = list()
     for node in full_graph.nodes:
-       neighbors = set(nx.all_neighbors(full_graph, node))
-       for nb_node in neighbors:
+       for nb_node in set(nx.all_neighbors(full_graph, node)):
             if nb_node.name > node.name:
                 from_value = 0
                 if(full_graph.has_edge(node, nb_node)):
@@ -104,13 +102,11 @@ def top_communicators(full_graph):
                 if(full_graph.has_edge(nb_node, node)):
                     to_value += full_graph[nb_node][node]['weight']
                 value = min(from_value, to_value)
-                if value>0:
-                    i += 1
-                    values[i] = value
-    top_values = sorted(values, reverse=True)
+                if value > 0:
+                    values.append(value)
+    top_values = sorted(filter( lambda x: x > 10, values), reverse = True)
     logging.info('Top communicators: ')
-    for i in range(0,100):
-        logging.info(top_values[i])
+    logging.info(top_values)
 ######################################################################
 
 #######################################################################
@@ -124,7 +120,7 @@ def basic_graph_stats(full_graph):
     edge_list = sorted(list(full_graph.edges), key=lambda x: full_graph[x[0]][x[1]]['weight'], reverse=True)
     for i in range(0,100):
         edge = edge_list[i]
-        logging.info("Edge from %s to %s has weight %s", edge[0], edge[1], full_graph[edge[0]][edge[1]]['weight'])
+        logging.debug("Edge from %s to %s has weight %s", edge[0], edge[1], full_graph[edge[0]][edge[1]]['weight'])
 #####################################################################
 
 def build_and_analyze(messages, eps, visualize=False):
@@ -138,7 +134,7 @@ def build_and_analyze(messages, eps, visualize=False):
 
     #To find groups, adjust the bidirectional graph into a unidirectional graph, weight on the edge is minimum of both directions
     #then find subgraphs that are fully connected, or even just weakly connected components
-    two_way_email_threshold = 2
+    two_way_email_threshold = 20
     reg_graph = nx.Graph()
     for node in full_graph.nodes:
         reg_graph.add_node(node)
@@ -150,19 +146,28 @@ def build_and_analyze(messages, eps, visualize=False):
                         reg_graph.add_edge(node, nb_node, weight = value)
     logging.info('Built undirected graph with %s nodes and %s edges', len(reg_graph.nodes), len(reg_graph.edges))
     for element in reg_graph.edges:
-        logging.info('Edge from %s to %s', element[0].name, element[1].name)
+        logging.debug('Edge from %s to %s', element[0].name, element[1].name)
     #find distinct subgraphs
-    comps = nx.connected_components(reg_graph)
-    for conn_comp in comps:
-        if len(conn_comp) > 1:
-            logging.info('1) Size of component is %s', len(conn_comp))
-            logging.info('2) Members are: %s', str([x.name for x in conn_comp]))
+    cliques = nx.find_cliques(reg_graph)
 
+    logging.info('Cliques: ')
+    for clique in cliques:
+        if len(clique) > 1:
+            logging.info('Size of clique is %s. Members are: %s', len(clique), ([x.name for x in clique]))
+    logging.info('Connected components: ')
+    comps = nx.connected_components(reg_graph)
+    size_of_most_dense_group = 0
+    for conn_comp in comps:
+        if (len(conn_comp) > 1):
+            logging.info('Size of component is %s. Members are: %s', len(conn_comp), str([x.name for x in conn_comp]))
+        if len(conn_comp) > size_of_most_dense_group:
+            most_dense_group = conn_comp
+            size_of_most_dense_group = len(conn_comp)
 
     #TODO: fix the visualization
     if visualize:
-        gof = sorted(comps, key=lambda x: len(x), reverse=True )
-        most_dense_group = gof[0]
+        #gof = sorted(comps, key=lambda x: len(x), reverse=True )
+        #most_dense_group = gof[0]
         logging.info('Members are: %s', str([x.name for x in most_dense_group]))
         subgraph = reg_graph.subgraph(most_dense_group)
         pos=nx.spring_layout(subgraph)
