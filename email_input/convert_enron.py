@@ -10,7 +10,7 @@ from datetime import datetime
 from util import filter
 
 ###################################################################################################
-def convert(maildir, outfilename):
+def convert(maildir, outfilename, is_full):
 
     # Create a file handle that we'll be writing into...
     outfile = open(outfilename, 'w')
@@ -19,7 +19,7 @@ def convert(maildir, outfilename):
     # Walk the directories and process any folder named 'inbox'
     for (root, dirs, file_names) in os.walk(maildir):
 
-        if root.split(os.sep)[-1].lower() != 'inbox':
+        if (not is_full) and (root.split(os.sep)[-1].lower() != 'inbox'):
             continue
 
         # Process each message in 'inbox'

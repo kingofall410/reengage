@@ -13,7 +13,8 @@ options = {"infile":"",
     "parse":True,
     "parse_out":"",
     "visualize":False,
-    "debug":False}
+    "debug":False,
+    "full":False}
 
 ###################################################################################################
 #logging WILL NOT WORK in this function
@@ -59,6 +60,9 @@ def parse_commandline(cmdline):
 
             elif ch == 'd':
                 options['debug'] = True
+
+            elif ch == 'f':
+                options['full'] = True
 
     return options
 
@@ -115,7 +119,7 @@ def convert(dataset_name, convert_input):
             convert_output = "data\\"+dataset_name+".mbox"
             logging.info("Created conversion output file: %s", convert_output)
 
-        convert_enron.convert(convert_input, convert_output)
+        convert_enron.convert(convert_input, convert_output, options['full'])
     else:
         logging.info("Skipping conversion")
         convert_output = convert_input
