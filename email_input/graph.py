@@ -34,7 +34,6 @@ def total_edge_weight(graph, from_node, to_nodes):
             result += graph[from_node][node]['weight']
         if graph.has_edge(node, from_node):
             result += graph[node][from_node]['weight']
-    #logging.debug("%s: %d", from_node.address,result) -- careful, this seems to log an insane amount of data for some reason
     return result
 
 ################################################################################
