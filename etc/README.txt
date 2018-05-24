@@ -9,6 +9,7 @@ OPTIONS
 -p <outfile>: where you want to store the output of an mbox parse.  By default it will go into "data\<infile_directory>.pickle"
 -v: show the visualization
 -d: run debug logs
+-f: parse the full directory structure instead of just inboxes
 
 The things you'll use most often are:
 1. py reengage_email.py input.mbox - parse the mbox and save input.pickle for future use
