@@ -36,6 +36,7 @@ class Message():
         self.flatmbox = flatmbox
         self.receivers = []
         self.ch = []
+        self.wordcloud = []
 
     def __str__(self):
         return str(self.id)+"---"+str(self.sender)+"---"+str(self.subject)

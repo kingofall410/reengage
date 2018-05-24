@@ -30,7 +30,13 @@ def parse_endpoints(endpoint_string):
         return endpoint_addresses, endpoint_names
     else:
         return None, None
-
+###################################################################################################
+def create_word_cloud(message_body):
+    cloud = {}
+    for word in message_body.split():
+        value = cloud.get(word, 0)
+        cloud[word] = value+1
+    return cloud
 ###################################################################################################
 def parse(infile, outfile):
 
@@ -69,6 +75,8 @@ def parse(infile, outfile):
                 subject = message['Subject']
                 date = dateutil.parser.parse(message['Date'])
                 body = message.get_payload()
+                wordcloud = create_word_cloud(body)
+                print(wordcloud)
                 mess = Message(id=id, sender=sender, subject=subject, datetime=date, body=body,
                                flatmbox=str(message))
 
