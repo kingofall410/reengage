@@ -3,7 +3,7 @@ import re
 import random
 import logging
 import pickle
-from util import filter
+from util import filter, progress
 import dateutil.parser
 
 from email_input.models import Endpoint, CustomHeader, Message
@@ -40,9 +40,12 @@ def parse(infile, outfile):
     filtered_message_count = 0
     input = mailbox.mbox(infile)
     output = open(outfile, 'wb')
-
+    counter = 0
     logging.info("Parser stats: %d Input Messages", len(input))
     for message in input:
+
+        counter = counter+1
+        progress.write(counter, len(input), "Parse mbox")
 
         #see if it has a From, if not it's a bad mbox, just skip for now
         if (message['From']):
@@ -94,7 +97,7 @@ def parse(infile, outfile):
                 logging.debug("------Message objects not created")
         else:
             bad_message_count +=1
-
+    progress.write(counter, len(input), "Parse mbox", True)
     logging.info("Parser stats: %d Message objects created, %d bad messages, %d filtered messages",
                  len(messages), bad_message_count, filtered_message_count)
 

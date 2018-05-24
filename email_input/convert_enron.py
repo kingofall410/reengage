@@ -16,6 +16,7 @@ def convert(maildir, outfilename, is_full):
     outfile = open(outfilename, 'w')
     msg_count = 0
     filtered_messages = 0
+
     # Walk the directories and process any folder named 'inbox'
     for (root, dirs, file_names) in os.walk(maildir):
 
