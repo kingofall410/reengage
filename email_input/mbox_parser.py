@@ -2,6 +2,7 @@ import mailbox
 import re
 import random
 import logging
+import operator
 import pickle
 from util import filter
 import dateutil.parser
@@ -37,6 +38,7 @@ def create_word_cloud(message_body):
         value = cloud.get(word, 0)
         cloud[word] = value+1
     return cloud
+
 ###################################################################################################
 def parse(infile, outfile):
 
@@ -75,8 +77,12 @@ def parse(infile, outfile):
                 subject = message['Subject']
                 date = dateutil.parser.parse(message['Date'])
                 body = message.get_payload()
-                wordcloud = create_word_cloud(body)
-                print(wordcloud)
+                sender.update_wordcloud(create_word_cloud(body))
+                #print(sorted(wordcloud.items(), key=lambda x: x[1], reverse=True))
+                if (sender.address.startswith('carla')):
+                    logging.info("%s", sender)
+                    logging.info("%s", sender.wordcloud)
+                #print()
                 mess = Message(id=id, sender=sender, subject=subject, datetime=date, body=body,
                                flatmbox=str(message))
 
