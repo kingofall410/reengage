@@ -1,6 +1,7 @@
 import logging
 import re
 import string
+from util import filter
 
 ###################################################################################################
 class Endpoint():
@@ -21,6 +22,7 @@ class Endpoint():
 
     def update_wordcloud(self, d):
         self.wordcloud = self.wordcloud.append(d)
+        logging.debug("Wordcloud updated: %s", str(self.wordcloud))
 
     @staticmethod
     def get_or_create(endpoints, address, name):
@@ -69,17 +71,25 @@ class WordCloud():
         self.strip_punctuation = strip_punctuation
 
         if d:
+
             if case_sensitive and strip_punctuation:
-                self.word_dict = {key.strip(string.punctuation):value for key,value in d.items()}
+                self.word_dict = {k.strip(string.punctuation):v for k,v in d.items()}
+
             elif not case_sensitive and strip_punctuation:
-                self.word_dict = {key.lower().strip(string.punctuation):value for key,value in d.items()}
+                self.word_dict = {k.lower().strip(string.punctuation):v for k,v in d.items()}
+
             elif case_sensitive and not strip_punctuation:
-                self.word_dict = d
+                self.word_dict = {k:v for k,v in d.items()}
+
             elif not case_sensitive and not strip_punctuation:
-                self.word_dict = {key.lower():value for key,value in d.items()}
+                self.word_dict = {k.lower():v for k,v in d.items()}
+
+            #I'm filtering at the end since I don't want to have to call lower() and strip() twice for each key
+            self.word_dict = {k:v for k,v in self.word_dict.items() if not filter.filter(k, "word")}
         else:
             self.word_dict = {}
 
+    ###############################################################################################
     def append(self, other_dict):
         new_wc = WordCloud(d=other_dict)
         if (self.word_dict):
@@ -90,9 +100,11 @@ class WordCloud():
                     new_wc.word_dict[key] = self.word_dict[key]
         return new_wc
 
+    ###############################################################################################
     def __add__(self, other):
         return self.append(other.word_dict)
 
+    ###############################################################################################
     def __str__(self):
         return str(sorted(self.word_dict.items(), key=lambda x: x[1], reverse=True))
 '''

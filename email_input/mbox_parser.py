@@ -56,14 +56,16 @@ def parse(infile, outfile):
         if (message['From']):
 
             id = message['Message-ID']
-            logging.warning("------No message ID found: %s", str(message))
+            if not id:
+                logging.warning("------No message ID found: %s", str(message))
 
             sender_add, sender_name = parse_endpoints(message['From'])
             recipients_add, recipients_name = parse_endpoints(message['To'])
 
             #filter out based on from/to
-            filtered_senders = filter.filter_list(sender_add)
-            filtered_recipients = filter.filter_list(recipients_add)
+            #TODO: why doesn't my constant work here?
+            filtered_senders = filter.filter_list(sender_add, "mail")
+            filtered_recipients = filter.filter_list(recipients_add, "mail")
 
             if filtered_senders and filtered_recipients:
 
@@ -108,11 +110,11 @@ def parse(infile, outfile):
 
     pickle.dump((messages, endpoints), output)
     output.close()
-    filtered_eps = [x for x in endpoints if x.is_sender]
+    '''filtered_eps = [x for x in endpoints if x.is_sender]
     sorted_eps = sorted(filtered_eps, key=lambda x:len(x.wordcloud.word_dict))
     print(sorted_eps[20], sorted_eps[20].wordcloud)
     print(sorted_eps[4], sorted_eps[4].wordcloud)
-    print("plus", sorted_eps[4].wordcloud+sorted_eps[20].wordcloud)
+    print("plus", sorted_eps[4].wordcloud+sorted_eps[20].wordcloud)'''
     return messages, endpoints
 
 def load_from_pickle(filename):
