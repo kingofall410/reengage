@@ -1,56 +1,70 @@
 import logging
 
-FILTER_FILENAME="config\\filters.cfg"
-filters = {'negative': [], 'positive':[]}
-initialized = False
-###################################################################################################
-def parse_filter_config():
-    global initialized, filters
+class FilterSet():
+    def __init__(self, filename=""):
+        self.filename = filename
+        self.initialized = False
+        self.filters = {'negative': [], 'positive':[]}
 
-    filter_file = open(FILTER_FILENAME)
+    def parse_filter_config(self):
+        filter_file = open(self.filename)
 
-    for line in filter_file:
-        if not line.startswith('#'):
+        for line in filter_file:
+            if not line.startswith('#'):
 
-            line = line.strip("\n\r ")
-            if line.startswith('+'):
-                filters['positive'].append(line.strip("+"))
-            elif line:
-                filters['negative'].append(line)
+                line = line.strip("\n\r ")
+                if line.startswith('+'):
+                    self.filters['positive'].append(line.strip("+"))
+                elif line:
+                    self.filters['negative'].append(line)
 
-    filter_file.close()
+        filter_file.close()
 
-    logging.debug("Filters: %s", str(filters))
+        logging.debug("%s Filters: %s", id, str(self.filters))
 
-    initialized = True
-
-    return filters
+        self.initialized = True
 
 ###################################################################################################
-def filtermatch(source):
-    global initialized, filters
+    def filter(self, source):
+        if not self.initialized:
+            self.parse_filter_config()
 
-    if not initialized:
-        parse_filter_config()
+        #TODO: this is slow
+        for filter in self.filters['negative']:
+            if source.endswith(filter):
+                logging.debug("Negative match filtered out: %s (%s)", source, filter)
+                return True
 
-    #TODO: this is slow
-    for filter in filters['negative']:
-        if source.endswith(filter):
-            logging.debug("Negative match filtered out: %s (%s)", source, filter)
-            return True
+        for filter in self.filters['positive']:
+            if not source.endswith(filter):
+                logging.debug("Positive match failure filtered out: %s (+%s)", source, filter)
+                return True
 
-    for filter in filters['positive']:
-        if not source.endswith(filter):
-            logging.debug("Positive match failure filtered out: %s (+%s)", source, filter)
-            return True
+        return False
 
-    return False
+
+filter_dict = {}
+MAIL_FITLER = "mail"
+WORD_FITLER = "word"
+filter_dict[MAIL_FITLER] = FilterSet("config\\email_filters.cfg")
+filter_dict[WORD_FITLER] = FilterSet("config\\wordcloud_filters.cfg")
 
 ###################################################################################################
-#This returns true if ALL sources in the list are filtered out
-def filter_list(sources):
+def filter(source, id):
+    if id in filter_dict:
+        return filter_dict[id].filter(source)
+    else:
+        logging.warning("Filter ID not found: %s", id)
+        return False
+
+###################################################################################################
+def filter_list(sources, id):
     return_sources = []
     if sources:
-        return_sources = [source for source in sources if not filtermatch(source)]
+        if id in filter_dict:
+            return_sources = [source for source in sources if not filter_dict[id].filter(source)]
+        else:
+            logging.warning("Filter ID not found: %s", id)
+            return_sources = sources
 
     return return_sources

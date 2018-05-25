@@ -34,7 +34,7 @@ def convert(maildir, outfilename, is_full):
             _date = re.search(r"Date: ([^\n]+)", message_text).groups()[0]
 
             logging.debug("From: %s, Date: %s", _from, _date)
-            if not filter.filtermatch(_from.strip()):
+            if not filter.filter(_from.strip(), "mail"):
                 msg_count += 1
 
                 #if (message_text.find("Fournace") >=0):

@@ -2,6 +2,7 @@ import mailbox
 import re
 import random
 import logging
+import operator
 import pickle
 from util import filter, progress
 import dateutil.parser
@@ -30,6 +31,13 @@ def parse_endpoints(endpoint_string):
         return endpoint_addresses, endpoint_names
     else:
         return None, None
+###################################################################################################
+def create_word_cloud(message_body):
+    cloud = {}
+    for word in message_body.split():
+        value = cloud.get(word, 0)
+        cloud[word] = value+1
+    return cloud
 
 ###################################################################################################
 def parse(infile, outfile):
@@ -51,27 +59,29 @@ def parse(infile, outfile):
         if (message['From']):
 
             id = message['Message-ID']
-            if (id):
-                logging.debug("------Found message: %s", id)
-            else:
+            if not id:
                 logging.warning("------No message ID found: %s", str(message))
 
             sender_add, sender_name = parse_endpoints(message['From'])
             recipients_add, recipients_name = parse_endpoints(message['To'])
 
             #filter out based on from/to
-            filtered_senders = filter.filter_list(sender_add)
-            filtered_recipients = filter.filter_list(recipients_add)
+            #TODO: why doesn't my constant work here?
+            filtered_senders = filter.filter_list(sender_add, "mail")
+            filtered_recipients = filter.filter_list(recipients_add, "mail")
 
             if filtered_senders and filtered_recipients:
 
                 #create sender endpoint
                 sender = Endpoint.get_or_create(endpoints, sender_add[0], sender_name[0])
+                sender.set_sender()
 
                 #Create Message object
                 subject = message['Subject']
                 date = dateutil.parser.parse(message['Date'])
                 body = message.get_payload()
+                sender.update_wordcloud(create_word_cloud(body))
+
                 mess = Message(id=id, sender=sender, subject=subject, datetime=date, body=body,
                                flatmbox=str(message))
 
@@ -103,7 +113,11 @@ def parse(infile, outfile):
 
     pickle.dump((messages, endpoints), output)
     output.close()
-
+    '''filtered_eps = [x for x in endpoints if x.is_sender]
+    sorted_eps = sorted(filtered_eps, key=lambda x:len(x.wordcloud.word_dict))
+    print(sorted_eps[20], sorted_eps[20].wordcloud)
+    print(sorted_eps[4], sorted_eps[4].wordcloud)
+    print("plus", sorted_eps[4].wordcloud+sorted_eps[20].wordcloud)'''
     return messages, endpoints
 
 def load_from_pickle(filename):
