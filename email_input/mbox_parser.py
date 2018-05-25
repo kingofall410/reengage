@@ -78,11 +78,7 @@ def parse(infile, outfile):
                 date = dateutil.parser.parse(message['Date'])
                 body = message.get_payload()
                 sender.update_wordcloud(create_word_cloud(body))
-                #print(sorted(wordcloud.items(), key=lambda x: x[1], reverse=True))
-                if (sender.address.startswith('carla')):
-                    logging.info("%s", sender)
-                    logging.info("%s", sender.wordcloud)
-                #print()
+
                 mess = Message(id=id, sender=sender, subject=subject, datetime=date, body=body,
                                flatmbox=str(message))
 
@@ -114,7 +110,8 @@ def parse(infile, outfile):
 
     pickle.dump((messages, endpoints), output)
     output.close()
-
+    sorted_eps = sorted(endpoints, key=lambda x:len(x.wordcloud.word_dict), reverse=True)
+    print(sorted_eps[0], sorted_eps[0].wordcloud)
     return messages, endpoints
 
 def load_from_pickle(filename):

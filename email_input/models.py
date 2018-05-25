@@ -1,13 +1,13 @@
 import logging
 
+###################################################################################################
 class Endpoint():
     def __init__(self, name, address):
         self.name = name
         self.address = address
-        self.wordcloud = None
+        self.wordcloud = WordCloud()
 
     def __str__(self):
-        #return self.name+" <"+self.address+">"
         return self.address
 
     def __eq__(self, other):
@@ -17,15 +17,7 @@ class Endpoint():
         return hash((self.name, self.address))
 
     def update_wordcloud(self, d):
-        if self.wordcloud:
-            self.wordcloud = self.wordcloud.append(d)
-        else:
-            self.wordcloud = WordCloud(d)
-        '''wc = WordCloud(d)
-        if self.wordcloud:
-            self.wordcloud = self.wordcloud + wc
-        else:
-            self.wordcloud = wc'''
+        self.wordcloud = self.wordcloud.append(d)
 
     @staticmethod
     def get_or_create(endpoints, address, name):
@@ -37,6 +29,7 @@ class Endpoint():
         logging.debug("Endpoint found: %s", address)
         return ep
 
+###################################################################################################
 class Message():
     def __init__(self, id, sender, subject, datetime, body, flatmbox):
         self.id = id
@@ -57,6 +50,13 @@ class Message():
     def addCH(self, ch):
         self.ch.append(ch)
 
+###################################################################################################
+class CustomHeader():
+    def __init__(self, header_key, header_value):
+        self.header_key = header_key
+        self.header_value = header_value
+
+###################################################################################################
 class WordCloud():
     def __init__(self, d=None):
         if d:
@@ -65,16 +65,13 @@ class WordCloud():
             self.word_dict = {}
 
     def append(self, other_dict):
-        new_wc = WordCloud()
-        for key in self.word_dict:
-            if key in other_dict:
-                new_wc.word_dict[key] = self.word_dict[key] + other_dict[key]
-            else:
-                new_wc.word_dict[key] = self.word_dict[key]
-
-        for key in other_dict:
-            if key not in self.word_dict:
-                new_wc.word_dict[key] = other_dict[key]
+        new_wc = WordCloud(other_dict)
+        if (self.word_dict):
+            for key in self.word_dict:
+                if key in new_wc.word_dict:
+                    new_wc.word_dict[key] = self.word_dict[key] + new_wc.word_dict[key]
+                else:
+                    new_wc.word_dict[key] = self.word_dict[key]
         return new_wc
 
     def __add__(self, other):
@@ -82,8 +79,3 @@ class WordCloud():
 
     def __str__(self):
         return str(sorted(self.word_dict.items(), key=lambda x: x[1], reverse=True))
-
-class CustomHeader():
-    def __init__(self, header_key, header_value):
-        self.header_key = header_key
-        self.header_value = header_value
