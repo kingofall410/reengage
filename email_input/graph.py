@@ -8,6 +8,7 @@ import numpy as np
 
 ################################################################################
 def build_graph(messages, endpoints, is_show_graph):
+    logging.info("Messages: %s", str(len(messages)))
     G = nx.DiGraph()
 
     for endpoint in endpoints:
@@ -87,7 +88,7 @@ def find_candidate(graph, group, candidates, is_remove):
 
 ################################################################################
 
-##################################
+################################################################################
 
 def top_communicators(full_graph):
 #how connected is this graph really. Is there 2 way communication, what are reasonable amounts.
@@ -107,9 +108,9 @@ def top_communicators(full_graph):
     top_values = sorted(filter( lambda x: x > 10, values), reverse = True)
     logging.info('Top communicators: ')
     logging.info(top_values)
-######################################################################
+################################################################################
 
-#######################################################################
+################################################################################
 def basic_graph_stats(full_graph):
     #goal is to explain the total amount of emails with as simple a structure as possible.
     #so first assess how many emails we have in total
@@ -121,62 +122,109 @@ def basic_graph_stats(full_graph):
     for i in range(0,100):
         edge = edge_list[i]
         logging.debug("Edge from %s to %s has weight %s", edge[0], edge[1], full_graph[edge[0]][edge[1]]['weight'])
-#####################################################################
+################################################################################
 
+################################################################################
+def derive_uni_graph(graph, threshold):
+    #To find groups, adjust the bidirectional graph into a unidirectional graph, weight on the edge is minimum of both directions
+    #then find subgraphs that are fully connected, or even just weakly connected components
+    reg_graph = nx.Graph()
+    for node in graph.nodes:
+        reg_graph.add_node(node)
+        for nb_node in nx.all_neighbors(graph, node):
+            if node != nb_node and nb_node.name > node.name:
+                if graph.has_edge(node, nb_node) and graph.has_edge(nb_node, node):
+                    value = min(graph[node][nb_node]['weight'],graph[nb_node][node]['weight'])
+                    if value >= threshold:
+                        reg_graph.add_edge(node, nb_node, weight = value)
+    logging.info('Built undirected graph with %s nodes and %s edges', len(reg_graph.nodes), len(reg_graph.edges))
+    return reg_graph 
+################################################################################
+
+################################################################################
+def visualize_group(graph, group):
+    #gof = sorted(comps, key=lambda x: len(x), reverse=True )
+    #most_dense_group = gof[0]
+    logging.info('Members are: %s', str([x.name for x in group]))
+    subgraph = graph.subgraph(group)
+    pos=nx.spring_layout(subgraph)
+    nx.draw(subgraph, pos, with_labels=True)
+    labels=dict([((u,v,),d['weight']) for u,v,d in subgraph.edges(data=True)])
+    nx.draw_networkx_edge_labels(subgraph,pos,edge_labels=labels)
+    plt.show()
+################################################################################
+
+################################################################################
+def visualize_poi_cliques(graph, email, min_size):
+    node_of_interest = list(filter(lambda x: x.name == email, graph.nodes()))[0]
+    #find all cliques with the poi by reducing the graph to only neighbors of POI
+    #so POI is always member of every maximal clique
+    logging.debug('POI: %s', node_of_interest.name)
+    nbors = list(graph.neighbors(node_of_interest))
+    nbors.append(node_of_interest)
+    subgraph = nx.subgraph(graph, nbors)
+    cliques = nx.find_cliques(subgraph)
+    edge_list = []
+    for clique in cliques:
+        if len(clique) >= min_size:
+            for edge in nx.subgraph(subgraph, clique).edges:
+                edge_list.append(edge)
+    
+    poi_graph = nx.DiGraph()
+
+    for clique in cliques:
+        if len(clique) >= min_size:
+            for node in clique:
+                poi_graph.add_node(node)
+
+    for edge in edge_list:
+        poi_graph.add_edge(edge[0], edge[1], weight = graph[edge[0]][edge[1]]['weight'])
+        
+    visualize_group(poi_graph, poi_graph.nodes())
+################################################################################
+    
 def build_and_analyze(messages, eps, visualize=False):
     print('Progress | Start analyze')
-    logging.info("Messages: %s", str(len(messages)))
+    
     full_graph = build_graph(messages, eps, False)
 
     basic_graph_stats(full_graph)
 
     top_communicators(full_graph)
 
-    #To find groups, adjust the bidirectional graph into a unidirectional graph, weight on the edge is minimum of both directions
-    #then find subgraphs that are fully connected, or even just weakly connected components
     two_way_email_threshold = 20
-    reg_graph = nx.Graph()
-    for node in full_graph.nodes:
-        reg_graph.add_node(node)
-        for nb_node in nx.all_neighbors(full_graph, node):
-            if node != nb_node and nb_node.name > node.name:
-                if full_graph.has_edge(node, nb_node) and full_graph.has_edge(nb_node, node):
-                    value = min(full_graph[node][nb_node]['weight'],full_graph[nb_node][node]['weight'])
-                    if value >= two_way_email_threshold:
-                        reg_graph.add_edge(node, nb_node, weight = value)
-    logging.info('Built undirected graph with %s nodes and %s edges', len(reg_graph.nodes), len(reg_graph.edges))
-    for element in reg_graph.edges:
-        logging.debug('Edge from %s to %s', element[0].name, element[1].name)
+    reg_graph = derive_uni_graph(full_graph, two_way_email_threshold)
+    
+    logging.debug(('Edge from %s to %s /n', element[0].name, element[1].name) for element in reg_graph.edges)
     #find distinct subgraphs
     cliques = nx.find_cliques(reg_graph)
 
     logging.info('Cliques: ')
+    size_of_most_dense_group = 0
     for clique in cliques:
         if len(clique) > 1:
             logging.info('Size of clique is %s. Members are: %s', len(clique), ([x.name for x in clique]))
+            if len(clique) > size_of_most_dense_group:
+                most_dense_group = clique
+                size_of_most_dense_group = len(clique)
     logging.info('Connected components: ')
+    
     comps = nx.connected_components(reg_graph)
-    size_of_most_dense_group = 0
+    
     for conn_comp in comps:
         if (len(conn_comp) > 1):
             logging.info('Size of component is %s. Members are: %s', len(conn_comp), str([x.name for x in conn_comp]))
-        if len(conn_comp) > size_of_most_dense_group:
-            most_dense_group = conn_comp
-            size_of_most_dense_group = len(conn_comp)
 
-    #TODO: fix the visualization
     if visualize:
-        #gof = sorted(comps, key=lambda x: len(x), reverse=True )
-        #most_dense_group = gof[0]
-        logging.info('Members are: %s', str([x.name for x in most_dense_group]))
-        subgraph = reg_graph.subgraph(most_dense_group)
-        pos=nx.spring_layout(subgraph)
-        nx.draw(subgraph, pos, with_labels=True)
-        labels=dict([((u,v,),d['weight']) for u,v,d in subgraph.edges(data=True)])
-        nx.draw_networkx_edge_labels(subgraph,pos,edge_labels=labels)
-        plt.show()
+        visualize_group(reg_graph, most_dense_group)
 
-##############################################################
+    
+    emailaddr_of_interest = 'tana.jones@enron.com'
+    visualize_poi_cliques(reg_graph, emailaddr_of_interest, 3)
+
+
+
+################################################################################
 def thrash():
     #create groups of friends
     groups_of_friends = set()
