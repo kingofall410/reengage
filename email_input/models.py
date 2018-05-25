@@ -1,10 +1,13 @@
 import logging
+import re
+import string
 
 ###################################################################################################
 class Endpoint():
     def __init__(self, name, address):
         self.name = name
         self.address = address
+        self.is_sender = False
         self.wordcloud = WordCloud()
 
     def __str__(self):
@@ -28,6 +31,9 @@ class Endpoint():
             endpoints.append(ep)
         logging.debug("Endpoint found: %s", address)
         return ep
+
+    def set_sender(self):
+        self.is_sender = True
 
 ###################################################################################################
 class Message():
@@ -58,14 +64,24 @@ class CustomHeader():
 
 ###################################################################################################
 class WordCloud():
-    def __init__(self, d=None):
+    def __init__(self, d=None, case_sensitive=False, strip_punctuation=True):
+        self.case_sensitive = case_sensitive
+        self.strip_punctuation = strip_punctuation
+
         if d:
-            self.word_dict = d
+            if case_sensitive and strip_punctuation:
+                self.word_dict = {key.strip(string.punctuation):value for key,value in d.items()}
+            elif not case_sensitive and strip_punctuation:
+                self.word_dict = {key.lower().strip(string.punctuation):value for key,value in d.items()}
+            elif case_sensitive and not strip_punctuation:
+                self.word_dict = d
+            elif not case_sensitive and not strip_punctuation:
+                self.word_dict = {key.lower():value for key,value in d.items()}
         else:
             self.word_dict = {}
 
     def append(self, other_dict):
-        new_wc = WordCloud(other_dict)
+        new_wc = WordCloud(d=other_dict)
         if (self.word_dict):
             for key in self.word_dict:
                 if key in new_wc.word_dict:
@@ -79,3 +95,12 @@ class WordCloud():
 
     def __str__(self):
         return str(sorted(self.word_dict.items(), key=lambda x: x[1], reverse=True))
+'''
+def test_wc():
+    a = WordCloud(d={"A":1, "B":1})
+    b = WordCloud(d={"a":1, "B":1})
+    print(a)
+    print(b)
+    print(a+b)
+
+test_wc()'''

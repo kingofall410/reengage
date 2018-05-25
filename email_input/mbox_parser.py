@@ -56,10 +56,7 @@ def parse(infile, outfile):
         if (message['From']):
 
             id = message['Message-ID']
-            if (id):
-                logging.debug("------Found message: %s", id)
-            else:
-                logging.warning("------No message ID found: %s", str(message))
+            logging.warning("------No message ID found: %s", str(message))
 
             sender_add, sender_name = parse_endpoints(message['From'])
             recipients_add, recipients_name = parse_endpoints(message['To'])
@@ -72,6 +69,7 @@ def parse(infile, outfile):
 
                 #create sender endpoint
                 sender = Endpoint.get_or_create(endpoints, sender_add[0], sender_name[0])
+                sender.set_sender()
 
                 #Create Message object
                 subject = message['Subject']
@@ -110,8 +108,11 @@ def parse(infile, outfile):
 
     pickle.dump((messages, endpoints), output)
     output.close()
-    sorted_eps = sorted(endpoints, key=lambda x:len(x.wordcloud.word_dict), reverse=True)
-    print(sorted_eps[0], sorted_eps[0].wordcloud)
+    filtered_eps = [x for x in endpoints if x.is_sender]
+    sorted_eps = sorted(filtered_eps, key=lambda x:len(x.wordcloud.word_dict))
+    print(sorted_eps[20], sorted_eps[20].wordcloud)
+    print(sorted_eps[4], sorted_eps[4].wordcloud)
+    print("plus", sorted_eps[4].wordcloud+sorted_eps[20].wordcloud)
     return messages, endpoints
 
 def load_from_pickle(filename):
