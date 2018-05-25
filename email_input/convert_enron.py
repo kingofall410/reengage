@@ -4,10 +4,10 @@ import sys
 import os
 import logging
 from time import asctime
-from dateutil.parser import parse # pip install python_dateutil
+from dateutil.parser import parse
 from datetime import datetime
 
-from util import filter
+from util import filter, progress
 
 ###################################################################################################
 def convert(maildir, outfilename, is_full):
@@ -20,6 +20,7 @@ def convert(maildir, outfilename, is_full):
     # Walk the directories and process any folder named 'inbox'
     for (root, dirs, file_names) in os.walk(maildir):
 
+        progress.write(msg_count+filtered_messages, 0, "Convert enron")
         if (not is_full) and (root.split(os.sep)[-1].lower() != 'inbox'):
             continue
 
@@ -37,10 +38,6 @@ def convert(maildir, outfilename, is_full):
             if not filter.filter(_from.strip(), "mail"):
                 msg_count += 1
 
-                #if (message_text.find("Fournace") >=0):
-                #print(message_text)
-
-
                 message_text = message_text.replace("\nFrom ", "\n>From")
                 _date = asctime(parse(_date).timetuple())
                 msg = email.message_from_string(message_text)
@@ -49,6 +46,7 @@ def convert(maildir, outfilename, is_full):
             else:
                 filtered_messages += 1
 
+    progress.write(msg_count+filtered_messages, msg_count+filtered_messages, "Convert enron", True)
     logging.info("Conversion stats: %d messages converted, %d messages filtered",
                  msg_count, filtered_messages)
     outfile.close()
