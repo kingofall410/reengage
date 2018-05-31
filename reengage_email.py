@@ -4,7 +4,8 @@ import copy
 import logging
 from datetime import datetime
 
-from email_input import convert_enron, graph, mbox_parser
+from email_input import convert_enron, graph, mbox_parser, models
+
 
 #defaults
 options = {"infile":"",
@@ -184,4 +185,9 @@ def main():
         errorStr = "FATAL: File not found: "+options['infile']
         print(errorStr)
         logging.critical(errorStr)
-main()
+
+def test():
+    models.test_wc()
+
+#main()
+test()

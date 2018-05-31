@@ -26,6 +26,7 @@ class FilterSet():
 
 ###################################################################################################
     def filter(self, source):
+        
         if not self.initialized:
             self.parse_filter_config()
 

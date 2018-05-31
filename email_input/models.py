@@ -72,6 +72,7 @@ class WordCloud():
 
         if d:
 
+            #TODO:this strips similar words incorrectly - "The" vs "the"
             if case_sensitive and strip_punctuation:
                 self.word_dict = {k.strip(string.punctuation):v for k,v in d.items()}
 
@@ -92,6 +93,7 @@ class WordCloud():
     ###############################################################################################
     def append(self, other_dict):
         new_wc = WordCloud(d=other_dict)
+
         if (self.word_dict):
             for key in self.word_dict:
                 if key in new_wc.word_dict:
@@ -107,12 +109,37 @@ class WordCloud():
     ###############################################################################################
     def __str__(self):
         return str(sorted(self.word_dict.items(), key=lambda x: x[1], reverse=True))
-'''
-def test_wc():
-    a = WordCloud(d={"A":1, "B":1})
-    b = WordCloud(d={"a":1, "B":1})
-    print(a)
-    print(b)
-    print(a+b)
 
-test_wc()'''
+def test_create_word_cloud(message_body):
+    cloud = {}
+    for word in message_body.split():
+        value = cloud.get(word, 0)
+        cloud[word] = value+1
+    return cloud
+
+'''wordclouds are just dictionaries.  I haven't built much functionality into the class itself just yet.
+endpoints will have wordclouds after the parse step (the same step that the endpoint is created in).
+You can access a wordcloud by using <endpoint>.wordcloud - just another attribute.'''
+def test_wc():
+    endpoint1 = Endpoint("Test", "test@test.com")
+    endpoint2 = Endpoint("Test2", "test2@test.com")
+    endpoint3 = Endpoint("Test3", "test3@test.com")
+    print("Endpoints:", endpoint1, endpoint2)
+
+    '''wordclouds are case insensitive by default, and strip out all punctuation outside of words
+    ("one-time-fee" will stay in, "Done." will be changed to "done")'''
+    word_dict = test_create_word_cloud("Our employees really love working for us.")
+    endpoint1.update_wordcloud(word_dict)
+    print(endpoint1.wordcloud)
+
+    word_dict = test_create_word_cloud("I need to buy a new car ASAP!")
+    endpoint2.update_wordcloud(word_dict)
+    print(endpoint2.wordcloud)
+
+    '''you can add two wordclouds or append a dict to a wordcloud.  Mostly I think you will want to
+    add wordclouds of the groups of enpoints that result from your analysis'''
+    word_dict = test_create_word_cloud("Are you sure about that?")
+    endpoint1.update_wordcloud(word_dict)
+    print(endpoint1.wordcloud)
+    wc = endpoint1.wordcloud+endpoint2.wordcloud
+    print(wc)
