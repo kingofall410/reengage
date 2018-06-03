@@ -189,5 +189,5 @@ def main():
 def test():
     models.test_wc()
 
-#main()
-test()
+main()
+#test()

@@ -1,11 +1,12 @@
 import logging
-
+import subprocess as sp
 from email_input.models import Endpoint, CustomHeader, Message
 import networkx as nx
 import matplotlib.pyplot as plt
-import copy
-import numpy as np
+import re, json
 
+from watson_developer_cloud import NaturalLanguageUnderstandingV1
+from watson_developer_cloud.natural_language_understanding_v1 import Features, EntitiesOptions, KeywordsOptions
 ################################################################################
 def build_graph(messages, endpoints, is_show_graph):
     G = nx.DiGraph()
@@ -155,14 +156,11 @@ def build_and_analyze(messages, eps, visualize=False):
             logging.info('Size of clique is %s. Members are: %s', len(clique), ([x.name for x in clique]))
     logging.info('Connected components: ')
     comps = nx.connected_components(reg_graph)
-    size_of_most_dense_group = 0
     for conn_comp in comps:
         if (len(conn_comp) > 1):
             logging.info('Size of component is %s. Members are: %s', len(conn_comp), str([x.name for x in conn_comp]))
-        if len(conn_comp) > size_of_most_dense_group:
-            most_dense_group = conn_comp
-            size_of_most_dense_group = len(conn_comp)
-
+    most_dense_group = max(nx.connected_components(reg_graph), key= len)
+    logging.info('Size of largest component is %s. Members are: %s', len(most_dense_group), str([x.name for x in most_dense_group]))
     #TODO: fix the visualization
     if visualize:
         #gof = sorted(comps, key=lambda x: len(x), reverse=True )
@@ -174,7 +172,60 @@ def build_and_analyze(messages, eps, visualize=False):
         labels=dict([((u,v,),d['weight']) for u,v,d in subgraph.edges(data=True)])
         nx.draw_networkx_edge_labels(subgraph,pos,edge_labels=labels)
         plt.show()
+    
+       
+    logging.info('Printing emails')
+    for person in most_dense_group:
+        logging.info('Name: %s', person.name)
+        name = re.sub('[\s+]','', person.name)
+        #f = open(name + ".txt", "w+")
+        i = 0;
+        for message in messages:
+            if message.sender == person:
+                
+                i += 1
+                if i <= 10:
+                    body = re.sub('[\s+]','%20',message.body)
+                    logging.info('Email: %s', body)
+                    score = watson_request(message.body)
+                    logging.info("Message from %s with score %s", message.sender.name, str(score))
+                    print("New score: ", str(score))
 
+
+
+#######################################################################
+def watson_request(message):
+    natural_language_understanding = NaturalLanguageUnderstandingV1(
+            username='2ba9c82d-4590-4d77-ae45-d3988afb5446',
+            password='JWCDPbtBBX1v',
+            version='2018-03-16')
+    
+    response = natural_language_understanding.analyze(text= message,
+       features=Features(
+               entities=EntitiesOptions(
+                       emotion=True,
+                       sentiment=True,
+                       limit=2)
+               )
+       )
+    jsonresult = json.loads(json.dumps(response, indent=2))
+    print(jsonresult)
+    sentiment_score = jsonresult["entities"][0]["sentiment"]["score"]
+    return sentiment_score
+#####################################################################   
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    #result = sp.run("curl --user 2ba9c82d-4590-4d77-ae45-d3988afb5446:JWCDPbtBBX1v \"https://gateway.watsonplatform.net/natural-language-understanding/api/v1/analyze?version=2017-02-27&text=" + lastmessage.body + "&features=sentiment\"", shell=True, check=True, stdout=sp.PIPE, universal_newlines=True)
+    #print("Email output: %s", result.stdout)
+    #jsonresult = json.loads(result.stdout)
+    #print(jsonresult['sentiment']['document']['score'])
 ##############################################################
 def thrash():
     #create groups of friends
