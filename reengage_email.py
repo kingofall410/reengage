@@ -170,7 +170,7 @@ def main():
     parse_commandline(cmdline)
     init_logging()
     #see if the input file exists
-    #TODO:This all needs refactor
+    
     if os.path.exists(options['infile']):
 
         dataset_name = extract_dataset_name()

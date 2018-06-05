@@ -1,12 +1,17 @@
 import logging
 import subprocess as sp
-from email_input.models import Endpoint, CustomHeader, Message
 import networkx as nx
-import matplotlib.pyplot as plt
-import re, json
+import re, json, csv
+from datetime import datetime
 
+from util import progress
+from email_input.models import Endpoint, CustomHeader, Message
+
+import matplotlib.pyplot as plt
 from watson_developer_cloud import NaturalLanguageUnderstandingV1
 from watson_developer_cloud.natural_language_understanding_v1 import Features, EntitiesOptions, KeywordsOptions
+from watson_developer_cloud import watson_service
+
 ################################################################################
 def build_graph(messages, endpoints, is_show_graph):
     G = nx.DiGraph()
@@ -160,6 +165,15 @@ def build_and_analyze(messages, eps, visualize=False):
         if (len(conn_comp) > 1):
             logging.info('Size of component is %s. Members are: %s', len(conn_comp), str([x.name for x in conn_comp]))
     most_dense_group = max(nx.connected_components(reg_graph), key= len)
+
+    most_dense_group_messages = dict()
+    for m in messages:
+        if m.sender in most_dense_group:
+            if m.sender in most_dense_group_messages:
+                most_dense_group_messages[m.sender].append(m)
+            else:
+                most_dense_group_messages[m.sender] = [m]
+
     logging.info('Size of largest component is %s. Members are: %s', len(most_dense_group), str([x.name for x in most_dense_group]))
     #TODO: fix the visualization
     if visualize:
@@ -172,56 +186,77 @@ def build_and_analyze(messages, eps, visualize=False):
         labels=dict([((u,v,),d['weight']) for u,v,d in subgraph.edges(data=True)])
         nx.draw_networkx_edge_labels(subgraph,pos,edge_labels=labels)
         plt.show()
-    
-       
-    logging.info('Printing emails')
-    for person in most_dense_group:
-        logging.info('Name: %s', person.name)
-        name = re.sub('[\s+]','', person.name)
-        #f = open(name + ".txt", "w+")
-        i = 0;
-        for message in messages:
-            if message.sender == person:
-                
-                i += 1
-                if i <= 10:
-                    body = re.sub('[\s+]','%20',message.body)
-                    logging.info('Email: %s', body)
-                    score = watson_request(message.body)
-                    logging.info("Message from %s with score %s", message.sender.name, str(score))
-                    print("New score: ", str(score))
 
+
+    logging.info('Printing emails')
+    watson_filename = r'data\watson'+str(datetime.now()).replace(":", "_")+".csv"
+
+    with open(watson_filename, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile, dialect='excel', quoting=csv.QUOTE_ALL)
+        writer.writerow(["Sender", "Message Body", "Score"])
+
+        for (i, sender) in enumerate(most_dense_group_messages):
+            for (j, message) in enumerate(most_dense_group_messages[sender]):
+                progress.write(i, len(most_dense_group_messages), "Watsoning")
+
+                #only passing the first 10 messages per person
+                if j > 9:
+                    break
+                person = message.sender
+                logging.info('Name: %s', person.name)
+                name = re.sub('[\s+]','', person.name)
+                body = re.sub('[\s+]','%20',message.body)
+                #logging.info('Email: %s', body)
+                score = watson_request(message.body)
+                writer.writerow([person, message.body, score])
+                #logging.info("Message from %s with score %s", message.sender.name, str(score))
+                #print("New score: ", str(score))
+
+        progress.write(len(most_dense_group_messages), len(most_dense_group_messages), "Watsoning", True)
 
 
 #######################################################################
 def watson_request(message):
+    pass
+    sentiment_score = None
+    #TODO: don't need to recreate this every time
+    edwin_username = '2ba9c82d-4590-4d77-ae45-d3988afb5446'
+    edwin_password = 'JWCDPbtBBX1v'
+    dan_username = 'd118a5d0-81bd-4577-a17d-30dcdfcbc44b'
+    dan_password = '0szZ7vYY3ptT'
+
     natural_language_understanding = NaturalLanguageUnderstandingV1(
-            username='2ba9c82d-4590-4d77-ae45-d3988afb5446',
-            password='JWCDPbtBBX1v',
+            username=dan_username,
+            password=dan_password,
             version='2018-03-16')
-    
-    response = natural_language_understanding.analyze(text= message,
-       features=Features(
-               entities=EntitiesOptions(
-                       emotion=True,
-                       sentiment=True,
-                       limit=2)
-               )
-       )
-    jsonresult = json.loads(json.dumps(response, indent=2))
-    print(jsonresult)
-    sentiment_score = jsonresult["entities"][0]["sentiment"]["score"]
+
+    try:
+        response = natural_language_understanding.analyze(text= message,
+           features=Features(
+                   entities=EntitiesOptions(
+                           emotion=True,
+                           sentiment=True,
+                           limit=2)
+                   )
+           )
+        jsonresult = json.loads(json.dumps(response, indent=2))
+        if jsonresult["entities"]:
+            sentiment_score = jsonresult["entities"][0]["sentiment"]["score"]
+
+    except watson_service.WatsonApiException:
+        logging.warning("Couldn't watson message: %s", message)
+
     return sentiment_score
-#####################################################################   
-    
-    
-    
-    
-    
-    
-    
-    
-    
+#####################################################################
+
+
+
+
+
+
+
+
+
     #result = sp.run("curl --user 2ba9c82d-4590-4d77-ae45-d3988afb5446:JWCDPbtBBX1v \"https://gateway.watsonplatform.net/natural-language-understanding/api/v1/analyze?version=2017-02-27&text=" + lastmessage.body + "&features=sentiment\"", shell=True, check=True, stdout=sp.PIPE, universal_newlines=True)
     #print("Email output: %s", result.stdout)
     #jsonresult = json.loads(result.stdout)

@@ -34,7 +34,7 @@ class Endpoint():
         logging.debug("Endpoint found: %s", address)
         return ep
 
-    def set_sender(self):
+    def set_sender(self, message=None):
         self.is_sender = True
 
 ###################################################################################################

@@ -113,11 +113,7 @@ def parse(infile, outfile):
 
     pickle.dump((messages, endpoints), output)
     output.close()
-    '''filtered_eps = [x for x in endpoints if x.is_sender]
-    sorted_eps = sorted(filtered_eps, key=lambda x:len(x.wordcloud.word_dict))
-    print(sorted_eps[20], sorted_eps[20].wordcloud)
-    print(sorted_eps[4], sorted_eps[4].wordcloud)
-    print("plus", sorted_eps[4].wordcloud+sorted_eps[20].wordcloud)'''
+
     return messages, endpoints
 
 def load_from_pickle(filename):
