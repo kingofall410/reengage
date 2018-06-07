@@ -1,9 +1,9 @@
-import csv, re, logging, json
+import csv, re, logging, json, pprint
 
 from util import progress
 
 from watson_developer_cloud import NaturalLanguageUnderstandingV1
-from watson_developer_cloud.natural_language_understanding_v1 import Features, EntitiesOptions, KeywordsOptions, SentimentOptions
+from watson_developer_cloud.natural_language_understanding_v1 import Features, EntitiesOptions, KeywordsOptions, SentimentOptions, EmotionOptions
 from watson_developer_cloud import watson_service
 
 nlu = None
@@ -32,20 +32,28 @@ def extract_sender_messages(graph_group, messages):
 ###################################################################################################
 def watson_request(message):
 
-    sentiment_score = None
+    return_dict = {"sentiment": None,
+                   "emotion": None}
+    sentiment=SentimentOptions()
+    emotion=EmotionOptions()
+    features = Features(sentiment=sentiment, emotion=emotion)
+    #features = Features(entities=EntitiesOptions(emotion=True, sentiment=True, limit=2))
 
     try:
-        features = Features(sentiment=SentimentOptions())
-        #features = Features(entities=EntitiesOptions(emotion=True, sentiment=True, limit=2))
         response = nlu.analyze(text=message, features=features)
+        #pp = pprint.PrettyPrinter(indent=4)
+        #pp.pprint(response)
 
         if response["sentiment"]:
-            sentiment_score = response["sentiment"]["document"]["score"]
+            return_dict["sentiment"] = response["sentiment"]["document"]
+
+        if response["emotion"]:
+            return_dict["emotion"] = response["emotion"]["document"]["emotion"]
 
     except watson_service.WatsonApiException:
         logging.warning("Couldn't watson message: %s", message)
 
-    return sentiment_score
+    return return_dict
 
 ###################################################################################################
 def run_watson(graph, messages, watson_filename, messages_per_person=10):
@@ -56,7 +64,8 @@ def run_watson(graph, messages, watson_filename, messages_per_person=10):
     nlu = init_watson()
     with open(watson_filename, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile, dialect='excel', quoting=csv.QUOTE_ALL)
-        writer.writerow(["Sender", "Message Body", "Score"])
+        writer.writerow(["Sender", "Message Body", "General Sentiment",
+                         "Anger", "Disgust", "Fear", "Joy", "Sadness"])
 
         for (i, sender) in enumerate(group_messages):
             for (j, message) in enumerate(group_messages[sender]):
@@ -70,7 +79,12 @@ def run_watson(graph, messages, watson_filename, messages_per_person=10):
                 #name = re.sub('[\s+]','', message.sender.name)
                 body = re.sub('[\s+]','%20',message.body)
 
-                score = watson_request(message.body)
-                writer.writerow([message.sender, message.body, score])
+                response = watson_request(message.body)
+                #pp = pprint.PrettyPrinter(indent=4)
+                #pp.pprint(response)
+                writer.writerow([message.sender, message.body, response["sentiment"]["score"],
+                                 response["emotion"]["anger"],response["emotion"]["disgust"],
+                                 response["emotion"]["fear"],response["emotion"]["joy"],
+                                 response["emotion"]["sadness"]])
 
         progress.write(nr_senders, nr_senders, "Watsoning", True)
