@@ -3,7 +3,7 @@ import csv, re, logging, json
 from util import progress
 
 from watson_developer_cloud import NaturalLanguageUnderstandingV1
-from watson_developer_cloud.natural_language_understanding_v1 import Features, EntitiesOptions, KeywordsOptions
+from watson_developer_cloud.natural_language_understanding_v1 import Features, EntitiesOptions, KeywordsOptions, SentimentOptions
 from watson_developer_cloud import watson_service
 
 nlu = None
@@ -35,11 +35,12 @@ def watson_request(message):
     sentiment_score = None
 
     try:
-        features = Features(entities=EntitiesOptions(emotion=True, sentiment=True, limit=2))
-        response = nlu.analyze(text= message, features=features)
+        features = Features(sentiment=SentimentOptions())
+        #features = Features(entities=EntitiesOptions(emotion=True, sentiment=True, limit=2))
+        response = nlu.analyze(text=message, features=features)
 
-        if response["entities"]:
-            sentiment_score = response["entities"][0]["sentiment"]["score"]
+        if response["sentiment"]:
+            sentiment_score = response["sentiment"]["document"]["score"]
 
     except watson_service.WatsonApiException:
         logging.warning("Couldn't watson message: %s", message)

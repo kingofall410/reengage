@@ -176,7 +176,7 @@ def build_and_analyze(messages, eps, visualize=False, watson_filename=None):
         plt.show()
 
     if watson_filename:
-        watson.run_watson(most_dense_group, messages, watson_filename)
+        watson.run_watson(most_dense_group, messages, watson_filename, 1)
     else:
         print("No watsoning")
 
