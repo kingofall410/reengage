@@ -15,7 +15,8 @@ options = {"infile":"",
     "parse_out":"",
     "visualize":False,
     "debug":False,
-    "full":False}
+    "inbox_only":False,
+    "watsoning":False}
 
 ###################################################################################################
 #logging WILL NOT WORK in this function
@@ -62,8 +63,11 @@ def parse_commandline(cmdline):
             elif ch == 'd':
                 options['debug'] = True
 
-            elif ch == 'f':
-                options['full'] = True
+            elif ch == 'i':
+                options['inbox_only'] = True
+
+            elif ch == 'w':
+                options['watsoning'] = True
 
     return options
 
@@ -120,7 +124,7 @@ def convert(dataset_name, convert_input):
             convert_output = "data\\"+dataset_name+".mbox"
             logging.info("Created conversion output file: %s", convert_output)
 
-        convert_enron.convert(convert_input, convert_output, options['full'])
+        convert_enron.convert(convert_input, convert_output, not options['inbox_only'])
     else:
         logging.info("Skipping conversion")
         convert_output = convert_input
@@ -151,9 +155,14 @@ def parse(dataset_name, parse_input):
     return messages, eps
 
 ###################################################################################################
-def analyze(messages, eps, is_vis):
+def analyze(messages, dataset_name, eps, is_vis, watsoning):
+
     if (messages):
-        graph.build_and_analyze(messages, eps, is_vis)
+        watson_filename = None
+        if watsoning:
+            watson_filename = 'data\\'+dataset_name+'_watson.csv'
+
+        graph.build_and_analyze(messages, eps, is_vis, watson_filename)
     else:
         errorStr = "FATAL: No messages found: "+parse_file
         print(errorStr)
@@ -169,8 +178,8 @@ def main():
     #parse commandline before setting up logging in order to set debug levels
     parse_commandline(cmdline)
     init_logging()
+
     #see if the input file exists
-    
     if os.path.exists(options['infile']):
 
         dataset_name = extract_dataset_name()
@@ -179,7 +188,7 @@ def main():
         parse_filename = convert(dataset_name, convert_filename)
         messages, eps = parse(dataset_name, parse_filename)
 
-        analyze(messages, eps, options['visualize'])
+        analyze(messages, dataset_name, eps, options['visualize'], options['watsoning'])
 
     else:
         errorStr = "FATAL: File not found: "+options['infile']

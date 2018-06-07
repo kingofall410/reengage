@@ -1,16 +1,12 @@
 import logging
 import subprocess as sp
 import networkx as nx
-import re, json, csv
-from datetime import datetime
+import re, json
 
-from util import progress
+from . import watson
 from email_input.models import Endpoint, CustomHeader, Message
 
 import matplotlib.pyplot as plt
-from watson_developer_cloud import NaturalLanguageUnderstandingV1
-from watson_developer_cloud.natural_language_understanding_v1 import Features, EntitiesOptions, KeywordsOptions
-from watson_developer_cloud import watson_service
 
 ################################################################################
 def build_graph(messages, endpoints, is_show_graph):
@@ -128,7 +124,7 @@ def basic_graph_stats(full_graph):
         logging.debug("Edge from %s to %s has weight %s", edge[0], edge[1], full_graph[edge[0]][edge[1]]['weight'])
 #####################################################################
 
-def build_and_analyze(messages, eps, visualize=False):
+def build_and_analyze(messages, eps, visualize=False, watson_filename=None):
     print('Progress | Start analyze')
     logging.info("Messages: %s", str(len(messages)))
     full_graph = build_graph(messages, eps, False)
@@ -149,30 +145,22 @@ def build_and_analyze(messages, eps, visualize=False):
                     value = min(full_graph[node][nb_node]['weight'],full_graph[nb_node][node]['weight'])
                     if value >= two_way_email_threshold:
                         reg_graph.add_edge(node, nb_node, weight = value)
-    logging.info('Built undirected graph with %s nodes and %s edges', len(reg_graph.nodes), len(reg_graph.edges))
+    logging.debug('Built undirected graph with %s nodes and %s edges', len(reg_graph.nodes), len(reg_graph.edges))
     for element in reg_graph.edges:
         logging.debug('Edge from %s to %s', element[0].name, element[1].name)
     #find distinct subgraphs
     cliques = nx.find_cliques(reg_graph)
 
-    logging.info('Cliques: ')
+    logging.debug('Cliques: ')
     for clique in cliques:
         if len(clique) > 1:
-            logging.info('Size of clique is %s. Members are: %s', len(clique), ([x.name for x in clique]))
-    logging.info('Connected components: ')
+            logging.debug('Size of clique is %s. Members are: %s', len(clique), ([x.name for x in clique]))
+    logging.debug('Connected components: ')
     comps = nx.connected_components(reg_graph)
     for conn_comp in comps:
         if (len(conn_comp) > 1):
-            logging.info('Size of component is %s. Members are: %s', len(conn_comp), str([x.name for x in conn_comp]))
+            logging.debug('Size of component is %s. Members are: %s', len(conn_comp), str([x.name for x in conn_comp]))
     most_dense_group = max(nx.connected_components(reg_graph), key= len)
-
-    most_dense_group_messages = dict()
-    for m in messages:
-        if m.sender in most_dense_group:
-            if m.sender in most_dense_group_messages:
-                most_dense_group_messages[m.sender].append(m)
-            else:
-                most_dense_group_messages[m.sender] = [m]
 
     logging.info('Size of largest component is %s. Members are: %s', len(most_dense_group), str([x.name for x in most_dense_group]))
     #TODO: fix the visualization
@@ -187,72 +175,10 @@ def build_and_analyze(messages, eps, visualize=False):
         nx.draw_networkx_edge_labels(subgraph,pos,edge_labels=labels)
         plt.show()
 
-
-    logging.info('Printing emails')
-    watson_filename = r'data\watson'+str(datetime.now()).replace(":", "_")+".csv"
-
-    with open(watson_filename, 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile, dialect='excel', quoting=csv.QUOTE_ALL)
-        writer.writerow(["Sender", "Message Body", "Score"])
-
-        for (i, sender) in enumerate(most_dense_group_messages):
-            for (j, message) in enumerate(most_dense_group_messages[sender]):
-                progress.write(i, len(most_dense_group_messages), "Watsoning")
-
-                #only passing the first 10 messages per person
-                if j > 9:
-                    break
-                person = message.sender
-                logging.info('Name: %s', person.name)
-                name = re.sub('[\s+]','', person.name)
-                body = re.sub('[\s+]','%20',message.body)
-                #logging.info('Email: %s', body)
-                score = watson_request(message.body)
-                writer.writerow([person, message.body, score])
-                #logging.info("Message from %s with score %s", message.sender.name, str(score))
-                #print("New score: ", str(score))
-
-        progress.write(len(most_dense_group_messages), len(most_dense_group_messages), "Watsoning", True)
-
-
-#######################################################################
-def watson_request(message):
-    pass
-    sentiment_score = None
-    #TODO: don't need to recreate this every time
-    edwin_username = '2ba9c82d-4590-4d77-ae45-d3988afb5446'
-    edwin_password = 'JWCDPbtBBX1v'
-    dan_username = 'd118a5d0-81bd-4577-a17d-30dcdfcbc44b'
-    dan_password = '0szZ7vYY3ptT'
-
-    natural_language_understanding = NaturalLanguageUnderstandingV1(
-            username=dan_username,
-            password=dan_password,
-            version='2018-03-16')
-
-    try:
-        response = natural_language_understanding.analyze(text= message,
-           features=Features(
-                   entities=EntitiesOptions(
-                           emotion=True,
-                           sentiment=True,
-                           limit=2)
-                   )
-           )
-        jsonresult = json.loads(json.dumps(response, indent=2))
-        if jsonresult["entities"]:
-            sentiment_score = jsonresult["entities"][0]["sentiment"]["score"]
-
-    except watson_service.WatsonApiException:
-        logging.warning("Couldn't watson message: %s", message)
-
-    return sentiment_score
-#####################################################################
-
-
-
-
-
+    if watson_filename:
+        watson.run_watson(most_dense_group, messages, watson_filename)
+    else:
+        print("No watsoning")
 
 
 
