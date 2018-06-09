@@ -2,6 +2,8 @@ import logging
 import re
 import string
 from util import filter
+from nltk.stem import PorterStemmer
+from nltk.tokenize import sent_tokenize, word_tokenize
 
 ###################################################################################################
 class Endpoint():
@@ -110,9 +112,11 @@ class WordCloud():
     def __str__(self):
         return str(sorted(self.word_dict.items(), key=lambda x: x[1], reverse=True))
 
-def test_create_word_cloud(message_body):
+def test_create_word_cloud(message_body,is_stem = True):
+    ps = PorterStemmer()
     cloud = {}
     for word in message_body.split():
+        if is_stem: word = ps.stem(word)
         value = cloud.get(word, 0)
         cloud[word] = value+1
     return cloud
@@ -128,7 +132,7 @@ def test_wc():
 
     '''wordclouds are case insensitive by default, and strip out all punctuation outside of words
     ("one-time-fee" will stay in, "Done." will be changed to "done")'''
-    word_dict = test_create_word_cloud("Our employees really love working for us.")
+    word_dict = test_create_word_cloud("Our employees really love working for us.", is_stem = True)
     endpoint1.update_wordcloud(word_dict)
     print(endpoint1.wordcloud)
 
@@ -143,3 +147,4 @@ def test_wc():
     print(endpoint1.wordcloud)
     wc = endpoint1.wordcloud+endpoint2.wordcloud
     print(wc)
+    

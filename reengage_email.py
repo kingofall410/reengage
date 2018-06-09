@@ -170,7 +170,6 @@ def analyze(messages, dataset_name, eps, is_vis, watsoning):
 
 ###################################################################################################
 def main():
-
     #deepcopy commandlin since another module might need it
     cmdline = copy.deepcopy(sys.argv)
 
@@ -197,6 +196,6 @@ def main():
 
 def test():
     models.test_wc()
-
+    
 main()
 #test()

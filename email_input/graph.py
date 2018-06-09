@@ -4,7 +4,7 @@ import networkx as nx
 import re, json
 
 from . import watson
-from email_input.models import Endpoint, CustomHeader, Message
+from email_input import models
 
 import matplotlib.pyplot as plt
 
@@ -105,7 +105,7 @@ def top_communicators(full_graph):
                 value = min(from_value, to_value)
                 if value > 0:
                     values.append(value)
-    top_values = sorted(filter( lambda x: x > 10, values), reverse = True)
+    top_values = sorted(filter( lambda x: x > 100, values), reverse = True)
     logging.info('Top communicators: ')
     logging.info(top_values)
 ######################################################################
@@ -124,31 +124,36 @@ def basic_graph_stats(full_graph):
         logging.debug("Edge from %s to %s has weight %s", edge[0], edge[1], full_graph[edge[0]][edge[1]]['weight'])
 #####################################################################
 
+def build_unidir_graph(full_graph, two_way_email_threshold):	
+    #To find groups, adjust the bidirectional graph into a unidirectional graph, weight on the edge is minimum of both directions
+    #then find subgraphs that are fully connected, or even just weakly connected components
+	reg_graph = nx.Graph()
+	for node in full_graph.nodes:
+		reg_graph.add_node(node)
+		for nb_node in nx.all_neighbors(full_graph, node):
+			if node != nb_node and nb_node.name > node.name:
+				if full_graph.has_edge(node, nb_node) and full_graph.has_edge(nb_node, node):
+					value = min(full_graph[node][nb_node]['weight'],full_graph[nb_node][node]['weight'])
+					if value >= two_way_email_threshold:
+						reg_graph.add_edge(node, nb_node, weight = value)
+	logging.debug('Built undirected graph with %s nodes and %s edges', len(reg_graph.nodes), len(reg_graph.edges))
+	for element in reg_graph.edges:
+		logging.debug('Edge from %s to %s', element[0].name, element[1].name)
+	return reg_graph
+
+#####################################################################
+
 def build_and_analyze(messages, eps, visualize=False, watson_filename=None):
     print('Progress | Start analyze')
     logging.info("Messages: %s", str(len(messages)))
     full_graph = build_graph(messages, eps, False)
-
     basic_graph_stats(full_graph)
-
     top_communicators(full_graph)
 
-    #To find groups, adjust the bidirectional graph into a unidirectional graph, weight on the edge is minimum of both directions
-    #then find subgraphs that are fully connected, or even just weakly connected components
-    two_way_email_threshold = 20
-    reg_graph = nx.Graph()
-    for node in full_graph.nodes:
-        reg_graph.add_node(node)
-        for nb_node in nx.all_neighbors(full_graph, node):
-            if node != nb_node and nb_node.name > node.name:
-                if full_graph.has_edge(node, nb_node) and full_graph.has_edge(nb_node, node):
-                    value = min(full_graph[node][nb_node]['weight'],full_graph[nb_node][node]['weight'])
-                    if value >= two_way_email_threshold:
-                        reg_graph.add_edge(node, nb_node, weight = value)
-    logging.debug('Built undirected graph with %s nodes and %s edges', len(reg_graph.nodes), len(reg_graph.edges))
-    for element in reg_graph.edges:
-        logging.debug('Edge from %s to %s', element[0].name, element[1].name)
-    #find distinct subgraphs
+    two_way_email_threshold = 100
+    reg_graph = build_unidir_graph(full_graph, two_way_email_threshold)
+	
+	#find distinct cliques
     cliques = nx.find_cliques(reg_graph)
 
     logging.debug('Cliques: ')
@@ -156,19 +161,13 @@ def build_and_analyze(messages, eps, visualize=False, watson_filename=None):
         if len(clique) > 1:
             logging.debug('Size of clique is %s. Members are: %s', len(clique), ([x.name for x in clique]))
     logging.debug('Connected components: ')
-    comps = nx.connected_components(reg_graph)
-    for conn_comp in comps:
-        if (len(conn_comp) > 1):
-            logging.debug('Size of component is %s. Members are: %s', len(conn_comp), str([x.name for x in conn_comp]))
-    most_dense_group = max(nx.connected_components(reg_graph), key= len)
-
-    logging.info('Size of largest component is %s. Members are: %s', len(most_dense_group), str([x.name for x in most_dense_group]))
-    #TODO: fix the visualization
+    biggest_clique = max(nx.find_cliques(reg_graph), key= len)
+	
     if visualize:
         #gof = sorted(comps, key=lambda x: len(x), reverse=True )
         #most_dense_group = gof[0]
-        logging.info('Members are: %s', str([x.name for x in most_dense_group]))
-        subgraph = reg_graph.subgraph(most_dense_group)
+        logging.info('Members are: %s', str([x.name for x in biggest_clique]))
+        subgraph = reg_graph.subgraph(biggest_clique)
         pos=nx.spring_layout(subgraph)
         nx.draw(subgraph, pos, with_labels=True)
         labels=dict([((u,v,),d['weight']) for u,v,d in subgraph.edges(data=True)])
@@ -176,86 +175,20 @@ def build_and_analyze(messages, eps, visualize=False, watson_filename=None):
         plt.show()
 
     if watson_filename:
-        watson.run_watson(most_dense_group, messages, watson_filename, 1)
+        watson.run_watson(biggest_clique, messages, watson_filename, 1)
     else:
         print("No watsoning")
-
-
-
-
-    #result = sp.run("curl --user 2ba9c82d-4590-4d77-ae45-d3988afb5446:JWCDPbtBBX1v \"https://gateway.watsonplatform.net/natural-language-understanding/api/v1/analyze?version=2017-02-27&text=" + lastmessage.body + "&features=sentiment\"", shell=True, check=True, stdout=sp.PIPE, universal_newlines=True)
-    #print("Email output: %s", result.stdout)
-    #jsonresult = json.loads(result.stdout)
-    #print(jsonresult['sentiment']['document']['score'])
+    
+    #word clouding
+    group_messages = watson.extract_sender_messages(biggest_clique, messages)
+    for (i, sender) in enumerate(group_messages):
+        msgs = '';
+        for (j, msg) in enumerate(  group_messages[sender]):
+            if i > 5:
+                break
+            else:
+                msgs += msg.body
+        sender_cloud = models.test_create_word_cloud(msgs, is_stem = True)
+        logging.info('Cloud for sender %s has length %s', sender.name, len(sender_cloud))
+        logging.info('Cloud top 10 for sender %s: %s', sender.name, sorted(sender_cloud, key = sender_cloud.get, reverse = True)[:10])
 ##############################################################
-def thrash():
-    #create groups of friends
-    groups_of_friends = set()
-    minsize_comps = 5
-    email_threshold = 25
-    email_remove_threshold = 25
-    for conn_comp in comps:
-        #if the subgraph is small, it's a friend group
-        #and actually, probably worthless for research
-        if len(conn_comp) <= minsize_comps:
-            groups_of_friends.add(frozenset(conn_comp))
-
-        #if the subgraph is large, look for well connected groups within
-        else:
-            for node in conn_comp:
-                #if node.name == 'arsystem@mailman.enron.com':
-                friends = {node}
-                candidates = set()
-                winner = node
-                done_adding = False#now start adding more people to the group of friends iteratively
-                while (not done_adding):
-                #for i in range(0, maxsize_friend_group):
-                    #add all neighbors of the new node to the candidate set and remove friends already added
-                    candidates |= {*(nx.all_neighbors(full_graph, winner))}
-                    candidates = candidates-friends
-                    #add the strongest remaining connection to the friends set
-                    #added x.name as second sort to make code run deterministic
-                    winner, winner_weight = find_candidate(full_graph, friends, candidates, False)
-                    #but don't add if there aren't at least email_threshold number of communications
-                    winner_edge_weight = total_edge_weight(full_graph, winner, friends)
-                    logging.debug('Winner is %s with value %s and edge-weight %s', winner.name, str(winner_weight), str(winner_edge_weight))
-                    if winner_weight >= email_threshold:
-                        logging.info('Winner %s was added due to weight %s', winner.name, str(winner_weight))
-                        friends.add(winner)
-                    else:
-                        done_adding = True
-
-                done_removing = False
-                while (not done_removing) & len(friends) > 1:
-                    loser, loser_weight = find_candidate(full_graph, friends, candidates, True)
-                    loser_edge_weight = total_edge_weight(full_graph, loser, friends)
-                    logging.debug('Loser is %s with value %s and edge-weight %s', loser.name, str(loser_weight), str(loser_edge_weight))
-                    if loser_weight <= email_remove_threshold:
-                        logging.info('Loser %s was removed due to weight %s', loser.name, str(loser_weight))
-                        friends = friends - {loser}
-                        candidates = candidates - {loser}
-                    else:
-                        done_removing = True
-
-
-
-
-
-                #because of email_threshold restriction, may end up with groups of 1
-                if len(friends) > 1:
-                    groups_of_friends.add(frozenset(friends))
-
-    #sorting based on group_density rather than size.
-    gof = sorted(groups_of_friends, key=lambda x: full_graph.subgraph(x).size(weight = 'weight'), reverse=True )
-    logging.info('Number of groups: %s', str(len(gof)))
-    explained_edge_weight = 0
-    for group in gof:
-        group_weight = full_graph.subgraph(group).size(weight = 'weight')
-        logging.info('Friend group (%s, weight = %s): %s', str(len(group)), str(group_weight), str([f.address for f in group]))
-        explained_edge_weight += group_weight
-    #so now I know how well my algorithm performed
-    total_edges_weight = full_graph.size(weight = 'weight')
-    logging.info('Algorithm created groups for a total of %s emails (out of %s emails, 1 email can be in multiple groups)',str(explained_edge_weight) ,str(total_edges_weight))
-
-
-    #look at the top group

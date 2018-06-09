@@ -23,7 +23,7 @@ def init_watson():
 def extract_sender_messages(graph_group, messages):
     group_messages = dict()
     for m in messages:
-        if m.sender in graph_group:
+        if m.sender in graph_group and not set(graph_group).isdisjoint(set(m.receivers)):
             if m.sender in group_messages:
                 group_messages[m.sender].append(m)
             else:
@@ -64,25 +64,24 @@ def run_watson(graph, messages, watson_filename, messages_per_person=10):
     nlu = init_watson()
     with open(watson_filename, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile, dialect='excel', quoting=csv.QUOTE_ALL)
-        writer.writerow(["Sender", "Message Body", "General Sentiment",
+        writer.writerow(["Sender", "Receivers", "Message Body", "General Sentiment",
                          "Anger", "Disgust", "Fear", "Joy", "Sadness"])
 
         for (i, sender) in enumerate(group_messages):
             for (j, message) in enumerate(group_messages[sender]):
                 progress.write(i, nr_senders, "Watsoning")
-
+                logging.debug('Looking at message nr %s for sender %s with content %s', str(j), sender, message.body)
                 #only passing the first 10 messages per person
                 if j >= messages_per_person:
                     break
 
-                logging.debug('Name: %s', message.sender.name)
+                logging.debug('About to Watson. Name: %s', message.sender.name)
                 #name = re.sub('[\s+]','', message.sender.name)
-                body = re.sub('[\s+]','%20',message.body)
 
                 response = watson_request(message.body)
                 #pp = pprint.PrettyPrinter(indent=4)
                 #pp.pprint(response)
-                writer.writerow([message.sender, message.body, response["sentiment"]["score"],
+                writer.writerow([message.sender, ';'.join([rec.name for rec in message.receivers]), message.body, response["sentiment"]["score"],
                                  response["emotion"]["anger"],response["emotion"]["disgust"],
                                  response["emotion"]["fear"],response["emotion"]["joy"],
                                  response["emotion"]["sadness"]])
