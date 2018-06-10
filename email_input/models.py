@@ -106,7 +106,7 @@ class WordCloud():
                     self.processed_dict[processed_word] += d[word]
 
     ###############################################################################################
-    def __init__(self, text=None, case_sensitive=True, strip_punctuation=True, stem=True,
+    def __init__(self, text=None, case_sensitive=False, strip_punctuation=True, stem=True,
                  filter=True):
         self.case_sensitive = case_sensitive
         self.strip_punctuation = strip_punctuation
@@ -128,21 +128,39 @@ class WordCloud():
             self.add_dict(other.raw_dict)
         elif type(other) is dict:
             self.add_dict(other)
+        elif type(other) is list:
+            for text in other:
+                self.add_text(text)
         else:
             logging.warning("Adding something strange to a wordcloud %s %s", type(other), other)
 
         return self
 
     ###############################################################################################
-    def stem(self):
-        new_processed_dict = default_dict(int)
+    def restem(self):
+        new_processed_dict = defaultdict(int)
         for word in self.processed_dict:
-            stemmed_word = ps.stem(word)
+            stemmed_word = self.ps.stem(word)
             new_processed_dict[stemmed_word] += self.processed_dict[word]
 
+        self.processed_dict = new_processed_dict
+        return self
+
     ###############################################################################################
-    def filter(self):
+    def decase(self):
+        new_processed_dict = defaultdict(int)
+        for word in self.processed_dict:
+            decased_word = word.lower()
+            new_processed_dict[decased_word] += self.processed_dict[word]
+
+        self.processed_dict = new_processed_dict
+        return self
+
+    ###############################################################################################
+    def refilter(self):
         self.processed_dict = {k:v for k,v in self.processed_dict.items() if not filter.filter(k, "word")}
+
+        return self
 
     ###############################################################################################
     def topX(self, x=10, start=0):

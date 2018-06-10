@@ -2,6 +2,7 @@ import logging
 import subprocess as sp
 import networkx as nx
 import re, json
+from collections import defaultdict
 
 from . import watson
 from email_input import models
@@ -181,9 +182,17 @@ def build_and_analyze(messages, eps, visualize=False, watson_filename=None):
 
     #word clouding
     group_messages = watson.extract_sender_messages(biggest_clique, messages)
+
+    #create a dict that maps sender to their wordcloud of messages sent to this group
+    group_wordcloud = defaultdict(models.WordCloud)
     for (i, sender) in enumerate(group_messages):
+
+        #create a list of message bodies for this sender
+        message_bodies = [m.body for m in group_messages[sender]]
+        group_wordcloud[sender].append(message_bodies)
         #sender_cloud = models.test_create_word_cloud(msgs, is_stem = True)
-        sender.wordcloud.filter()
-        logging.info('Cloud for sender %s has length %s', sender.name, len(sender.wordcloud))
-        logging.info('Cloud top 10 for sender %s: %s', sender.name, sender.wordcloud.topX(10))
+        #group_wordcloud[sender].decase().restem().refilter()
+        nr = 10
+        logging.info('Cloud for sender %s has length %s', sender.name, len(group_wordcloud[sender]))
+        logging.info('Cloud top %s for sender %s: %s', nr, sender.name, group_wordcloud[sender].topX(nr))
 ##############################################################
