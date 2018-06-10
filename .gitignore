@@ -1,0 +1,8 @@
+__pycache__
+*.mbox
+*.pickle
+logs/
+data/
+.mboxview
+*.graphml
+*.jpg

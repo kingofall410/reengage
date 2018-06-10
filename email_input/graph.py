@@ -124,7 +124,7 @@ def basic_graph_stats(full_graph):
         logging.debug("Edge from %s to %s has weight %s", edge[0], edge[1], full_graph[edge[0]][edge[1]]['weight'])
 #####################################################################
 
-def build_unidir_graph(full_graph, two_way_email_threshold):	
+def build_unidir_graph(full_graph, two_way_email_threshold):
     #To find groups, adjust the bidirectional graph into a unidirectional graph, weight on the edge is minimum of both directions
     #then find subgraphs that are fully connected, or even just weakly connected components
 	reg_graph = nx.Graph()
@@ -152,7 +152,7 @@ def build_and_analyze(messages, eps, visualize=False, watson_filename=None):
 
     two_way_email_threshold = 100
     reg_graph = build_unidir_graph(full_graph, two_way_email_threshold)
-	
+
 	#find distinct cliques
     cliques = nx.find_cliques(reg_graph)
 
@@ -162,7 +162,7 @@ def build_and_analyze(messages, eps, visualize=False, watson_filename=None):
             logging.debug('Size of clique is %s. Members are: %s', len(clique), ([x.name for x in clique]))
     logging.debug('Connected components: ')
     biggest_clique = max(nx.find_cliques(reg_graph), key= len)
-	
+
     if visualize:
         #gof = sorted(comps, key=lambda x: len(x), reverse=True )
         #most_dense_group = gof[0]
@@ -178,17 +178,12 @@ def build_and_analyze(messages, eps, visualize=False, watson_filename=None):
         watson.run_watson(biggest_clique, messages, watson_filename, 1)
     else:
         print("No watsoning")
-    
+
     #word clouding
     group_messages = watson.extract_sender_messages(biggest_clique, messages)
     for (i, sender) in enumerate(group_messages):
-        msgs = '';
-        for (j, msg) in enumerate(  group_messages[sender]):
-            if i > 5:
-                break
-            else:
-                msgs += msg.body
-        sender_cloud = models.test_create_word_cloud(msgs, is_stem = True)
-        logging.info('Cloud for sender %s has length %s', sender.name, len(sender_cloud))
-        logging.info('Cloud top 10 for sender %s: %s', sender.name, sorted(sender_cloud, key = sender_cloud.get, reverse = True)[:10])
+        #sender_cloud = models.test_create_word_cloud(msgs, is_stem = True)
+        sender.wordcloud.refilter()
+        logging.info('Cloud for sender %s has length %s', sender.name, len(sender.wordcloud))
+        logging.info('Cloud top 10 for sender %s: %s', sender.name, sender.wordcloud.topX(10))
 ##############################################################

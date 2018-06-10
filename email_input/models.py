@@ -105,6 +105,24 @@ class WordCloud():
         return new_wc
 
     ###############################################################################################
+    def stem(self):
+        ps = PorterStemmer()
+        for word in self.word_dict:
+            stemmed_word = ps.stem(word)
+            if stemmed_word in self.word_dict:
+                self.word_dict[stemmed_word] += 1
+            else:
+                self.word_dict[stemmed_word] = 1
+
+    ###############################################################################################
+    def refilter(self):
+        self.word_dict = {k:v for k,v in self.word_dict.items() if not filter.filter(k, "word")}
+
+    ###############################################################################################
+    def topX(self, x=10, start=0):
+        return sorted(self.word_dict, key=self.word_dict.get, reverse=True)[start:start+x]
+
+    ###############################################################################################
     def __add__(self, other):
         return self.append(other.word_dict)
 
@@ -112,6 +130,11 @@ class WordCloud():
     def __str__(self):
         return str(sorted(self.word_dict.items(), key=lambda x: x[1], reverse=True))
 
+    ###############################################################################################
+    def __len__(self):
+        return len(self.word_dict)
+
+'''don't use me
 def test_create_word_cloud(message_body,is_stem = True):
     ps = PorterStemmer()
     cloud = {}
@@ -119,7 +142,7 @@ def test_create_word_cloud(message_body,is_stem = True):
         if is_stem: word = ps.stem(word)
         value = cloud.get(word, 0)
         cloud[word] = value+1
-    return cloud
+    return cloud'''
 
 '''wordclouds are just dictionaries.  I haven't built much functionality into the class itself just yet.
 endpoints will have wordclouds after the parse step (the same step that the endpoint is created in).
@@ -147,4 +170,3 @@ def test_wc():
     print(endpoint1.wordcloud)
     wc = endpoint1.wordcloud+endpoint2.wordcloud
     print(wc)
-    
