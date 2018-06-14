@@ -20,16 +20,6 @@ def init_watson():
                                          version='2018-03-16')
 
 ###################################################################################################
-def extract_sender_messages(graph_group, messages):
-    group_messages = dict()
-    for m in messages:
-        if m.sender in graph_group and not set(graph_group).isdisjoint(set(m.receivers)):
-            if m.sender in group_messages:
-                group_messages[m.sender].append(m)
-            else:
-                group_messages[m.sender] = [m]
-    return group_messages
-###################################################################################################
 def watson_request(message):
 
     return_dict = {"sentiment": None,
@@ -56,10 +46,9 @@ def watson_request(message):
     return return_dict
 
 ###################################################################################################
-def run_watson(graph, messages, watson_filename, messages_per_person=10):
+def run_watson(messages, watson_filename, messages_per_person=10):
 
-    group_messages = extract_sender_messages(graph, messages)
-    nr_senders = len(group_messages)
+    nr_senders = len(messages)
 
     nlu = init_watson()
     with open(watson_filename, 'w', newline='') as csvfile:
@@ -67,21 +56,21 @@ def run_watson(graph, messages, watson_filename, messages_per_person=10):
         writer.writerow(["Sender", "Receivers", "Message Body", "General Sentiment",
                          "Anger", "Disgust", "Fear", "Joy", "Sadness"])
 
-        for (i, sender) in enumerate(group_messages):
-            for (j, message) in enumerate(group_messages[sender]):
+        for (i, sender) in enumerate(messages):
+            for (j, message) in enumerate(messages[sender]):
                 progress.write(i, nr_senders, "Watsoning")
                 logging.debug('Looking at message nr %s for sender %s with content %s', str(j), sender, message.body)
                 #only passing the first 10 messages per person
                 if j >= messages_per_person:
                     break
 
-                logging.debug('About to Watson. Name: %s', message.sender.name)
+                logging.debug('About to Watson. Name: %s', message.sender.address)
                 #name = re.sub('[\s+]','', message.sender.name)
 
                 response = watson_request(message.body)
                 #pp = pprint.PrettyPrinter(indent=4)
                 #pp.pprint(response)
-                writer.writerow([message.sender, ';'.join([rec.name for rec in message.receivers]), message.body, response["sentiment"]["score"],
+                writer.writerow([message.sender, ';'.join([rec.address for rec in message.receivers]), message.body, response["sentiment"]["score"],
                                  response["emotion"]["anger"],response["emotion"]["disgust"],
                                  response["emotion"]["fear"],response["emotion"]["joy"],
                                  response["emotion"]["sadness"]])

@@ -34,13 +34,13 @@ class FilterSet():
         for filter in self.filters['negative']:
             if (filter.startswith('*') and source.endswith(filter[1:])) \
                or source == filter:
-                logging.debug("Negative match filtered out: %s (%s)", source, filter)
+                #logging.debug("Negative match filtered out: %s (%s)", source, filter)
                 return True
 
         for filter in self.filters['positive']:
             if not (filter.startswith('*') and source.endswith(filter[1:])) \
                and not source == filter:
-                logging.debug("Positive match failure filtered out: %s (+%s)", source, filter)
+                #logging.debug("Positive match failure filtered out: %s (+%s)", source, filter)
                 return True
 
         return False

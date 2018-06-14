@@ -188,6 +188,8 @@ def main():
         messages, eps = parse(dataset_name, parse_filename)
 
         analyze(messages, dataset_name, eps, options['visualize'], options['watsoning'])
+        #for ep in eps:
+        #    logging.info("%s, %s", ep.names, ep.address)
 
     else:
         errorStr = "FATAL: File not found: "+options['infile']
@@ -196,6 +198,6 @@ def main():
 
 def test():
     models.test_wc()
-    
+
 main()
 #test()

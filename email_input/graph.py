@@ -80,10 +80,12 @@ def find_candidate(graph, group, candidates, is_remove):
     #this method determines who the best candidate to add/remove is
     #if is_remove, candidates needs to be subset of group
     if not is_remove:
-        winner = sorted(candidates, key=lambda x: (connectedness_kpi(graph, x, group), x.name), reverse= not is_remove)[0]
+        #edwincheckwinner = sorted(candidates, key=lambda x: (connectedness_kpi(graph, x, group), x.name), reverse= not is_remove)[0]
+        winner = sorted(candidates, key=lambda x: (connectedness_kpi(graph, x, group), x.address), reverse= not is_remove)[0]
         score = connectedness_kpi(graph, winner, group)
     else:
-        winner = sorted(candidates, key=lambda x: (connectedness_kpi(graph, x, group - {x}), x.name), reverse= not is_remove)[0]
+        #edwincheckwinner = sorted(candidates, key=lambda x: (connectedness_kpi(graph, x, group - {x}), x.name), reverse= not is_remove)[0]
+        winner = sorted(candidates, key=lambda x: (connectedness_kpi(graph, x, group - {x}), x.address), reverse= not is_remove)[0]
         score = connectedness_kpi(graph, winner, group - {winner})
     return winner, score
 
@@ -95,8 +97,10 @@ def top_communicators(full_graph):
 #how connected is this graph really. Is there 2 way communication, what are reasonable amounts.
     values = list()
     for node in full_graph.nodes:
-       for nb_node in set(nx.all_neighbors(full_graph, node)):
-            if nb_node.name > node.name:
+        for nb_node in set(nx.all_neighbors(full_graph, node)):
+
+            #edwincheckif nb_node.name > node.name:
+            if nb_node.address > node.address:
                 from_value = 0
                 if(full_graph.has_edge(node, nb_node)):
                     from_value += full_graph[node][nb_node]['weight']
@@ -128,19 +132,33 @@ def basic_graph_stats(full_graph):
 def build_unidir_graph(full_graph, two_way_email_threshold):
     #To find groups, adjust the bidirectional graph into a unidirectional graph, weight on the edge is minimum of both directions
     #then find subgraphs that are fully connected, or even just weakly connected components
-	reg_graph = nx.Graph()
-	for node in full_graph.nodes:
-		reg_graph.add_node(node)
-		for nb_node in nx.all_neighbors(full_graph, node):
-			if node != nb_node and nb_node.name > node.name:
-				if full_graph.has_edge(node, nb_node) and full_graph.has_edge(nb_node, node):
-					value = min(full_graph[node][nb_node]['weight'],full_graph[nb_node][node]['weight'])
-					if value >= two_way_email_threshold:
-						reg_graph.add_edge(node, nb_node, weight = value)
-	logging.debug('Built undirected graph with %s nodes and %s edges', len(reg_graph.nodes), len(reg_graph.edges))
-	for element in reg_graph.edges:
-		logging.debug('Edge from %s to %s', element[0].name, element[1].name)
-	return reg_graph
+    reg_graph = nx.Graph()
+    for node in full_graph.nodes:
+        reg_graph.add_node(node)
+        for nb_node in nx.all_neighbors(full_graph, node):
+            #edwincheckif node != nb_node and nb_node.name > node.name:edwincheck
+            if node != nb_node and nb_node.address > node.address:
+                if full_graph.has_edge(node, nb_node) and full_graph.has_edge(nb_node, node):
+                    value = min(full_graph[node][nb_node]['weight'],full_graph[nb_node][node]['weight'])
+                    if value >= two_way_email_threshold:
+                        reg_graph.add_edge(node, nb_node, weight = value)
+
+    logging.debug('Built undirected graph with %s nodes and %s edges', len(reg_graph.nodes), len(reg_graph.edges))
+    for element in reg_graph.edges:
+        logging.debug('Edge from %s to %s', element[0].address, element[1].address)
+
+    return reg_graph
+
+###################################################################################################
+def extract_sender_messages(graph_group, messages):
+    group_messages = dict()
+    for m in messages:
+        if m.sender in graph_group and not set(graph_group).isdisjoint(set(m.receivers)):
+            if m.sender in group_messages:
+                group_messages[m.sender].append(m)
+            else:
+                group_messages[m.sender] = [m]
+    return group_messages
 
 #####################################################################
 
@@ -151,8 +169,8 @@ def build_and_analyze(messages, eps, visualize=False, watson_filename=None):
     basic_graph_stats(full_graph)
     top_communicators(full_graph)
 
-    two_way_email_threshold = 100
-    reg_graph = build_unidir_graph(full_graph, two_way_email_threshold)
+    threshold = 100
+    reg_graph = build_unidir_graph(full_graph, threshold)
 
 	#find distinct cliques
     cliques = nx.find_cliques(reg_graph)
@@ -160,14 +178,16 @@ def build_and_analyze(messages, eps, visualize=False, watson_filename=None):
     logging.debug('Cliques: ')
     for clique in cliques:
         if len(clique) > 1:
-            logging.debug('Size of clique is %s. Members are: %s', len(clique), ([x.name for x in clique]))
+            logging.debug('Size of clique is %s. Members are: %s', len(clique), ([x.address for x in clique]))
     logging.debug('Connected components: ')
     biggest_clique = max(nx.find_cliques(reg_graph), key= len)
+
+    logging.info('Size of biggest clique is %s. Members are: %s', len(biggest_clique), ([x.address for x in biggest_clique]))
 
     if visualize:
         #gof = sorted(comps, key=lambda x: len(x), reverse=True )
         #most_dense_group = gof[0]
-        logging.info('Members are: %s', str([x.name for x in biggest_clique]))
+        logging.info('Members are: %s', str([x.address for x in biggest_clique]))
         subgraph = reg_graph.subgraph(biggest_clique)
         pos=nx.spring_layout(subgraph)
         nx.draw(subgraph, pos, with_labels=True)
@@ -175,14 +195,15 @@ def build_and_analyze(messages, eps, visualize=False, watson_filename=None):
         nx.draw_networkx_edge_labels(subgraph,pos,edge_labels=labels)
         plt.show()
 
+    group_messages = extract_sender_messages(biggest_clique, messages)
+
     if watson_filename:
-        watson.run_watson(biggest_clique, messages, watson_filename, 1)
+        #watson.run_watson(biggest_clique, messages, watson_filename, 1)
+        watson.run_watson(group_messages, watson_filename, 1)
     else:
         print("No watsoning")
 
     #word clouding
-    group_messages = watson.extract_sender_messages(biggest_clique, messages)
-
     #create a dict that maps sender to their wordcloud of messages sent to this group
     group_wordcloud = defaultdict(models.WordCloud)
     for (i, sender) in enumerate(group_messages):
@@ -193,6 +214,6 @@ def build_and_analyze(messages, eps, visualize=False, watson_filename=None):
         #sender_cloud = models.test_create_word_cloud(msgs, is_stem = True)
         #group_wordcloud[sender].decase().restem().refilter()
         nr = 10
-        logging.info('Cloud for sender %s has length %s', sender.name, len(group_wordcloud[sender]))
-        logging.info('Cloud top %s for sender %s: %s', nr, sender.name, group_wordcloud[sender].topX(nr))
+        logging.info('Cloud for sender %s has length %s', sender.address, len(group_wordcloud[sender]))
+        logging.info('Cloud top %s for sender %s: %s', nr, sender.address, group_wordcloud[sender].topX(nr))
 ##############################################################

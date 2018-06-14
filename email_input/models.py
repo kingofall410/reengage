@@ -6,9 +6,24 @@ from nltk.tokenize import sent_tokenize, word_tokenize
 
 ###################################################################################################
 class Endpoint():
-    def __init__(self, name, address):
-        self.name = name
+    def __init__(self, name, address, xfrom):
+
         self.address = address
+        #if name is the same as address that's not helpful
+        #try to extract the name from somewhere else
+        if name == address and '@' in name:
+            if xfrom:
+                name = xfrom
+            else:
+                name = name[:address.find('@')]
+                namesplit_index = name.rfind(".")
+                if namesplit_index == 0:
+                    name = name[1:]
+                elif namesplit_index > 0:
+                    name = name[:namesplit_index] +" "+name[namesplit_index+1:]
+
+        self.names = [name]
+
         self.is_sender = False
         self.wordcloud = WordCloud()
 
@@ -16,20 +31,24 @@ class Endpoint():
         return self.address
 
     def __eq__(self, other):
-        return (self.name == other.name) and (self.address == other.address)
+        #return (self.name == other.name) and (self.address == other.address)
+        return self.address == other.address
 
     def __hash__(self):
-        return hash((self.name, self.address))
+        return hash(self.address)
 
     def update_wordcloud(self, other):
         self.wordcloud.append(other)
         logging.debug("Wordcloud updated: %s", str(self.wordcloud))
 
     @staticmethod
-    def get_or_create(endpoints, address, name):
-        ep = Endpoint(address=address, name=name)
+    def get_or_create(endpoints, address, name, xfrom=None):
+        ep = Endpoint(address=address, name=name, xfrom=xfrom)
         try:
             ep = endpoints[endpoints.index(ep)]
+            #add this name to the name list if it's new
+            if name not in ep.names and not name == address:
+                ep.names.append(name)
         except(ValueError):#endpoint not in set
             endpoints.append(ep)
         logging.debug("Endpoint found: %s", address)
