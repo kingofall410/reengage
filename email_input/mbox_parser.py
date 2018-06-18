@@ -83,8 +83,8 @@ def parse_endpoints(endpoint_string, split_commas=True):
 ###################################################################################################
 def parse(infile, outfile):
 
-    messages = []
-    endpoints = []
+    #messages_by_endpoint is a mapping of email address to (endpoint, [messages])
+    messages_by_endpoint = dict()
     bad_message_count = 0
     filtered_message_count = 0
     input = mailbox.mbox(infile)
@@ -115,18 +115,17 @@ def parse(infile, outfile):
 
             if filtered_senders and filtered_recipients:
 
-                #create sender endpoint
-                sender = Endpoint.get_or_create(endpoints, sender_add[0], sender_name[0], xfrom_name)
-                sender.set_sender()
+                sender_tuple = Endpoint.get_or_create(messages_by_endpoint, sender_add[0], 
+                                                      sender_name[0], xfrom_name)
 
                 #Create Message object
                 subject = message['Subject']
                 date = dateutil.parser.parse(message['Date'])
                 body = message.get_payload()
-                sender.update_wordcloud(body)
+                sender_tuple[0].update_wordcloud(body)
 
-                mess = Message(id=id, sender=sender, subject=subject, datetime=date, body=body,
-                               flatmbox=str(message))
+                mess = Message(id=id, sender=sender_tuple[0], subject=subject, datetime=date, 
+                               body=body)
 
                 #create and add receiver Endpoints
                 if (recipients_add and recipients_name):
@@ -135,18 +134,13 @@ def parse(infile, outfile):
                             xto_name = None
                             if xto_names and len(xto_names) > i:
                                 xto_name = xto_names[i]
-                            receiver = Endpoint.get_or_create(endpoints, recipient_add, recipient_name, xto_name)
-                            mess.addRecipient(receiver)
 
-                #get all custom headers and save as strings
-                headers = message.items()
-                for header in headers:
-                    if (header[0].startswith('X') or header[0].startswith('x')):
-                        ch = CustomHeader(header_key=header[0], header_value=header[1])
-                        mess.addCH(ch)
+                            receiver_tuple = Endpoint.get_or_create(messages_by_endpoint, recipient_add, 
+                                                                    recipient_name, xto_name)
+                            mess.addRecipient(receiver_tuple[0])                
 
                 #add to the list
-                messages.append(mess)
+                sender_tuple[1].append(mess)
 
                 logging.debug("------Message objects added")
             else:
@@ -156,12 +150,12 @@ def parse(infile, outfile):
             bad_message_count +=1
     progress.write(counter, len(input), "Parse mbox", True)
     logging.info("Parser stats: %d Message objects created, %d bad messages, %d filtered messages",
-                 len(messages), bad_message_count, filtered_message_count)
+                 counter-bad_message_count-filtered_message_count, bad_message_count, filtered_message_count)
 
-    pickle.dump((messages, endpoints), output)
+    pickle.dump(messages_by_endpoint, output)
     output.close()
 
-    return messages, endpoints
+    return messages_by_endpoint
 
 def load_from_pickle(filename):
     input = open(filename, 'rb')

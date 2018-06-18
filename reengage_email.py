@@ -1,7 +1,4 @@
-import sys
-import os
-import copy
-import logging
+import sys, os, copy, logging
 from datetime import datetime
 
 from email_input import convert_enron, graph, mbox_parser, models
@@ -147,24 +144,25 @@ def parse(dataset_name, parse_input):
             parse_output = "data\\"+dataset_name+".pickle"
             logging.info("Created parse output file: %s", parse_output)
 
-        messages, eps = mbox_parser.parse(parse_input, parse_output)
+        messages = mbox_parser.parse(parse_input, parse_output)
+
     else:
         logging.info("Loading from pickle")
-        messages, eps = mbox_parser.load_from_pickle(parse_input)
+        messages = mbox_parser.load_from_pickle(parse_input)
 
-    return messages, eps
+    return messages
 
 ###################################################################################################
-def analyze(messages, dataset_name, eps, is_vis, watsoning):
+def analyze(messages, dataset_name, is_vis, watsoning):
 
     if (messages):
         watson_filename = None
         if watsoning:
             watson_filename = 'data\\'+dataset_name+'_watson.csv'
 
-        graph.build_and_analyze(messages, eps, is_vis, watson_filename)
+        graph.build_and_analyze(messages, is_vis, watson_filename)
     else:
-        errorStr = "FATAL: No messages found: "+parse_file
+        errorStr = "FATAL: No messages found: "+dataset_name
         print(errorStr)
         logging.critical(errorStr)
 
@@ -185,11 +183,9 @@ def main():
 
         convert_filename = options['infile']
         parse_filename = convert(dataset_name, convert_filename)
-        messages, eps = parse(dataset_name, parse_filename)
+        messages = parse(dataset_name, parse_filename)
 
-        analyze(messages, dataset_name, eps, options['visualize'], options['watsoning'])
-        #for ep in eps:
-        #    logging.info("%s, %s", ep.names, ep.address)
+        analyze(messages, dataset_name, options['visualize'], options['watsoning'])
 
     else:
         errorStr = "FATAL: File not found: "+options['infile']
