@@ -1,5 +1,6 @@
 import sys, os, copy, logging
 from datetime import datetime
+from operator import attrgetter
 
 from email_input import convert_enron, graph, mbox_parser, models
 
@@ -150,6 +151,7 @@ def parse(dataset_name, parse_input):
         logging.info("Loading from pickle")
         messages = mbox_parser.load_from_pickle(parse_input)
 
+
     return messages
 
 ###################################################################################################
@@ -185,7 +187,14 @@ def main():
         parse_filename = convert(dataset_name, convert_filename)
         messages = parse(dataset_name, parse_filename)
 
-        analyze(messages, dataset_name, options['visualize'], options['watsoning'])
+        #analyze(messages, dataset_name, options['visualize'], options['watsoning'])
+
+        #TODO: this shows that some of the names don't match up with email - needs to be investigated
+        sort_this_mess = sorted(filter(lambda x: len(x[1]) > 0, messages.values()), 
+                                key=lambda x: len(x[1]), reverse=True)
+        logging.info("Distinct senders: %s", len(sort_this_mess))
+        for (i, (endpoint, msgs)) in enumerate(sort_this_mess):
+            logging.info("%s: %s, %s, %s", i, endpoint.address, endpoint.names, len(msgs))
 
     else:
         errorStr = "FATAL: File not found: "+options['infile']

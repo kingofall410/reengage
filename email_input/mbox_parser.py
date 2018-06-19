@@ -7,7 +7,7 @@ import pickle
 from util import filter, progress
 import dateutil.parser
 
-from email_input.models import Endpoint, CustomHeader, Message
+from email_input.models import Endpoint, Message
 
 ################################################################################
 def parse_xfrom(xfrom_string):
