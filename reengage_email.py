@@ -169,6 +169,15 @@ def analyze(messages, dataset_name, is_vis, watsoning):
         logging.critical(errorStr)
 
 ###################################################################################################
+def test_print_sorted_senders(messages):
+    #TODO: this shows that some of the names don't match up with email - needs to be investigated
+    sort_this_mess = sorted(filter(lambda x: len(x[1]) > 0, messages.values()), 
+                            key=lambda x: len(x[1]), reverse=True)
+    logging.info("Distinct senders: %s", len(sort_this_mess))
+    for (i, (endpoint, msgs)) in enumerate(sort_this_mess):
+        logging.info("%s: %s, %s, %s", i, endpoint.address, endpoint.names, len(msgs))
+
+###################################################################################################
 def main():
     #deepcopy commandlin since another module might need it
     cmdline = copy.deepcopy(sys.argv)
@@ -188,13 +197,7 @@ def main():
         messages = parse(dataset_name, parse_filename)
 
         #analyze(messages, dataset_name, options['visualize'], options['watsoning'])
-
-        #TODO: this shows that some of the names don't match up with email - needs to be investigated
-        sort_this_mess = sorted(filter(lambda x: len(x[1]) > 0, messages.values()), 
-                                key=lambda x: len(x[1]), reverse=True)
-        logging.info("Distinct senders: %s", len(sort_this_mess))
-        for (i, (endpoint, msgs)) in enumerate(sort_this_mess):
-            logging.info("%s: %s, %s, %s", i, endpoint.address, endpoint.names, len(msgs))
+        test_print_sorted_senders(messages)        
 
     else:
         errorStr = "FATAL: File not found: "+options['infile']
