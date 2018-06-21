@@ -3,7 +3,7 @@ from datetime import datetime
 from operator import attrgetter
 
 from email_input import convert_enron, graph, mbox_parser, models
-
+from email_input.models import WordCloud
 
 #defaults
 options = {"infile":"",
@@ -178,6 +178,39 @@ def test_print_sorted_senders(messages):
         logging.info("%s: %s, %s, %s", i, endpoint.address, endpoint.names, len(msgs))
 
 ###################################################################################################
+def test_tf(sender_tuple):
+    tf_processed = tf_raw = 0
+    sender, messages = sender_tuple
+
+    message_wordclouds = [WordCloud(message.body) for message in messages]
+    #print(str([str(mwc) for mwc in message_wordclouds]))
+
+    sender_raw_word_count = sum(sender.wordcloud.raw_dict.values())
+    sender_processed_word_count = sum(sender.wordcloud.processed_dict.values())
+    print("SRaw word count:", sender_raw_word_count)
+    print("SProcessed word count:", sender_processed_word_count)
+
+    for wc in message_wordclouds:
+        raw_msg_word_count = sum(wc.raw_dict.values())
+        raw_msg_tfpct = {k: {'rmtf': round((v/raw_msg_word_count)*100, 2), 
+                             'rstf': round((sender.wordcloud.raw_dict[k]/sender_raw_word_count)*100, 2)}
+                            for k,v in wc.raw_dict.items()}
+                            
+        #print(raw_msg_tfpct)
+        print(sorted(raw_msg_tfpct.items(), key=lambda x: x[1]['rstf'], reverse=True))
+
+    '''
+
+    msg_raw_word_count = sum([sum(wc.raw_dict.values()) for wc in message_wordclouds])
+    msg_prc_word_count = sum([sum(wc.processed_dict.values()) for wc in message_wordclouds])
+    print("MRaw word count:", msg_raw_word_count)
+    print("MProcessed word count:", msg_prc_word_count)
+
+    raw_tfpct = {k: round((v/raw_word_count)*100, 2) for k,v in sender.wordcloud.raw_dict.items()}
+    prc_tfpct = {k: round((v/processed_word_count)*100, 2) for k,v in sender.wordcloud.processed_dict.items()}
+    print (sorted(prc_tfpct.items(), key=lambda x: x[1], reverse=True))'''
+
+###################################################################################################
 def main():
     #deepcopy commandlin since another module might need it
     cmdline = copy.deepcopy(sys.argv)
@@ -197,7 +230,9 @@ def main():
         messages = parse(dataset_name, parse_filename)
 
         #analyze(messages, dataset_name, options['visualize'], options['watsoning'])
-        test_print_sorted_senders(messages)        
+        #test_print_sorted_senders(messages)
+        #test_tf(messages["brad.morse@enron.com"])    
+        test_tf(messages["j..legler@enron.com"])        
 
     else:
         errorStr = "FATAL: File not found: "+options['infile']
