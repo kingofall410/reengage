@@ -6,3 +6,4 @@ data/
 .mboxview
 *.graphml
 *.jpg
+.vscode/

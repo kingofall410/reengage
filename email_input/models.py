@@ -23,8 +23,6 @@ class Endpoint():
                     name = name[:namesplit_index] +" "+name[namesplit_index+1:]
 
         self.names = [name]
-
-        self.is_sender = False
         self.wordcloud = WordCloud()
 
     def __str__(self):
@@ -41,48 +39,40 @@ class Endpoint():
         self.wordcloud.append(other)
         logging.debug("Wordcloud updated: %s", str(self.wordcloud))
 
-    @staticmethod
-    def get_or_create(endpoints, address, name, xfrom=None):
-        ep = Endpoint(address=address, name=name, xfrom=xfrom)
-        try:
-            ep = endpoints[endpoints.index(ep)]
-            #add this name to the name list if it's new
-            if name not in ep.names and not name == address:
-                ep.names.append(name)
-        except(ValueError):#endpoint not in set
-            endpoints.append(ep)
-        logging.debug("Endpoint found: %s", address)
-        return ep
+    def update_names(self, *args):
+        for name in args:
+            if name and name != self.address and name not in self.names:
+                self.names.append(name)
 
-    def set_sender(self, message=None):
-        self.is_sender = True
+    @staticmethod
+    def get_or_create(messages_by_endpoint, address, name, xfrom=None):
+        
+        if address in messages_by_endpoint:
+            #messages_by_endpoint is a mapping of email address to (endpoint, [messages])
+            sender_tuple = messages_by_endpoint[address]
+            sender_tuple[0].update_names(name, xfrom)
+        else:
+            messages_by_endpoint[address] = (Endpoint(address=address, name=name, xfrom=xfrom), [])
+            sender_tuple = messages_by_endpoint[address]
+
+        logging.debug("Endpoint found: %s", address)
+        return sender_tuple
 
 ###################################################################################################
 class Message():
-    def __init__(self, id, sender, subject, datetime, body, flatmbox):
+    def __init__(self, id, sender, subject, datetime, body):
         self.id = id
         self.sender = sender
         self.subject = subject
         self.datetime = datetime
         self.body = body
-        self.flatmbox = flatmbox
         self.receivers = []
-        self.ch = []
 
     def __str__(self):
-        return str(self.id)+"---"+str(self.sender)+"---"+str(self.subject)
+        return str("From: "+str(self.sender)+"; To: "+str([str(r) for r in self.receivers])+"; Subj: "+str(self.subject))
 
     def addRecipient(self, r):
         self.receivers.append(r)
-
-    def addCH(self, ch):
-        self.ch.append(ch)
-
-###################################################################################################
-class CustomHeader():
-    def __init__(self, header_key, header_value):
-        self.header_key = header_key
-        self.header_value = header_value
 
 ###################################################################################################
 class WordCloud():
