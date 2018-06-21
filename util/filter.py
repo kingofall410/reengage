@@ -4,7 +4,7 @@ class FilterSet():
     def __init__(self, filename=""):
         self.filename = filename
         self.initialized = False
-        self.filters = {'negative': [], 'positive':[]}
+        self.filters = {'negative': [], 'positive': []}
 
     def parse_filter_config(self):
         filter_file = open(self.filename)
@@ -26,19 +26,21 @@ class FilterSet():
 
 ###################################################################################################
     def filter(self, source):
-        
+
         if not self.initialized:
             self.parse_filter_config()
 
         #TODO: this is slow
         for filter in self.filters['negative']:
-            if source.endswith(filter):
-                logging.debug("Negative match filtered out: %s (%s)", source, filter)
+            if (filter.startswith('*') and source.endswith(filter[1:])) \
+               or source == filter:
+                #logging.debug("Negative match filtered out: %s (%s)", source, filter)
                 return True
 
         for filter in self.filters['positive']:
-            if not source.endswith(filter):
-                logging.debug("Positive match failure filtered out: %s (+%s)", source, filter)
+            if not (filter.startswith('*') and source.endswith(filter[1:])) \
+               and not source == filter:
+                #logging.debug("Positive match failure filtered out: %s (+%s)", source, filter)
                 return True
 
         return False
