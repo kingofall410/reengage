@@ -1,4 +1,4 @@
-import sys, os, copy, logging
+import sys, os, copy, logging, json
 from datetime import datetime
 from operator import attrgetter
 
@@ -14,7 +14,8 @@ options = {"infile":"",
     "visualize":False,
     "debug":False,
     "inbox_only":False,
-    "watsoning":False}
+    "watsoning":False,
+    "json_out":""}
 
 ###################################################################################################
 #logging WILL NOT WORK in this function
@@ -54,6 +55,12 @@ def parse_commandline(cmdline):
                 #if this is the last option, look for a parameter
                 if option.endswith(ch) and cmdline and not cmdline[0].startswith("-"):
                     options['parse_out'] = cmdline.pop(0)
+
+            if ch == 'j':
+                #if this is the last option, look for a parameter
+                if option.endswith(ch) and cmdline and not cmdline[0].startswith("-"):
+                    options['json_out'] = cmdline.pop(0)
+
 
             elif ch == 'v':
                 options['visualize'] = True
@@ -155,14 +162,18 @@ def parse(dataset_name, parse_input):
     return messages
 
 ###################################################################################################
-def analyze(messages, dataset_name, is_vis, watsoning):
+def analyze(messages, dataset_name, is_vis, watsoning, json_out):
 
     if (messages):
         watson_filename = None
         if watsoning:
             watson_filename = 'data\\'+dataset_name+'_watson.csv'
 
-        graph.build_and_analyze(messages, is_vis, watson_filename)
+        json_filename = json_out
+        if not json_filename:
+            json_filename = 'data\\'+dataset_name+'.json'
+
+        graph.build_and_analyze(messages, is_vis, watson_filename, json_filename)
     else:
         errorStr = "FATAL: No messages found: "+dataset_name
         print(errorStr)
@@ -210,6 +221,7 @@ def test_tf(sender_tuple):
     prc_tfpct = {k: round((v/processed_word_count)*100, 2) for k,v in sender.wordcloud.processed_dict.items()}
     print (sorted(prc_tfpct.items(), key=lambda x: x[1], reverse=True))'''
 
+
 ###################################################################################################
 def main():
     #deepcopy commandlin since another module might need it
@@ -229,10 +241,7 @@ def main():
         parse_filename = convert(dataset_name, convert_filename)
         messages = parse(dataset_name, parse_filename)
 
-        #analyze(messages, dataset_name, options['visualize'], options['watsoning'])
-        #test_print_sorted_senders(messages)
-        #test_tf(messages["brad.morse@enron.com"])    
-        test_tf(messages["j..legler@enron.com"])        
+        analyze(messages, dataset_name, options['visualize'], options['watsoning'], options['json_out'])
 
     else:
         errorStr = "FATAL: File not found: "+options['infile']

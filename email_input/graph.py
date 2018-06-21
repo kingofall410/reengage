@@ -9,6 +9,8 @@ from email_input import models
 
 import matplotlib.pyplot as plt
 
+data = {"nodes": [], "edges": []}
+
 ###################################################################################################
 def build_graph(messages_by_ep, is_show_graph):
     G = nx.DiGraph()
@@ -165,7 +167,30 @@ def extract_sender_messages(graph_group, messages_by_ep):
     return group_messages
 
 ###################################################################################################
-def build_and_analyze(messages, visualize=False, watson_filename=None):
+def out_to_json(filename):
+    global data
+    if filename:
+        with open(filename, 'w') as outfile:
+            json.dump(data, outfile)
+
+###################################################################################################
+def jsonify(graph):
+    global data
+
+    #TODO:This creates tons of edges to nowhere
+    for (i, node) in enumerate(graph):
+        #random limit
+        if (i >= 1000):
+            break
+
+        node_dict = {"id": node.address, "label": node.address}
+        if node_dict not in data["nodes"]:
+            data["nodes"].append(node_dict)
+        for succ in graph.successors(node):
+            data["edges"].append({"from":node.address, "to":succ.address})
+
+###################################################################################################
+def build_and_analyze(messages, visualize=False, watson_filename=None, json_filename=None):
     print('Progress | Start analyze')
     logging.info("Messages: %s", str(len(messages)))
     full_graph = build_graph(messages, False)
@@ -183,6 +208,9 @@ def build_and_analyze(messages, visualize=False, watson_filename=None):
         if len(clique) > 1:
             logging.debug('Size of clique is %s. Members are: %s', len(clique), 
                           ([x.address for x in clique]))
+
+            jsonify(full_graph.subgraph(clique))
+    out_to_json(json_filename)
 
     logging.debug('Connected components: ')
     biggest_clique = max(nx.find_cliques(reg_graph), key= len)
