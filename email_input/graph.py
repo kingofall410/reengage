@@ -194,6 +194,8 @@ def build_and_analyze(messages, visualize=False, watson_filename=None, json_file
     print('Progress | Start analyze')
     logging.info("Messages: %s", str(len(messages)))
     full_graph = build_graph(messages, False)
+    jsonify(full_graph)
+    out_to_json(json_filename)
     basic_graph_stats(full_graph)
     top_communicators(full_graph)
 

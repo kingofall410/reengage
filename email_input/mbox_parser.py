@@ -82,7 +82,7 @@ def parse_endpoints(endpoint_string, split_commas=True):
 
 ###################################################################################################
 def parse(infile, outfile):
-
+    
     #messages_by_endpoint is a mapping of email address to (endpoint, [messages])
     messages_by_endpoint = dict()
     bad_message_count = 0
@@ -114,15 +114,29 @@ def parse(infile, outfile):
             filtered_recipients = filter.filter_list(recipients_add, "mail")
 
             if filtered_senders and filtered_recipients:
-
-                sender_tuple = Endpoint.get_or_create(messages_by_endpoint, sender_add[0], 
-                                                      sender_name[0], xfrom_name)
+                name = sender_name[0] if sender_name else None
+                try:
+                    sender_tuple = Endpoint.get_or_create(messages_by_endpoint, sender_add[0], 
+                                                          name, xfrom_name)
+                except (TypeError):
+                    print(message)
+                    exit()
 
                 #Create Message object
                 subject = message['Subject']
                 date = dateutil.parser.parse(message['Date'])
-                body = message.get_payload()
-                sender_tuple[0].update_wordcloud(body)
+                #right now I don't even care about message body
+                body = ""
+                '''body = message.get_payload()
+                print("Body type:", type(body), "message is mp", message.is_multipart())
+                if message.is_multipart():
+                    print(message)
+                    for (i, part) in enumerate(body):
+                        print("******************part", i, "type", type(part), "payload type:", type(part.get_payload()))
+                        print(part)
+                    body = body[0].get_payload()
+                    
+                sender_tuple[0].update_wordcloud(body)'''
 
                 mess = Message(id=id, sender=sender_tuple[0], subject=subject, datetime=date, 
                                body=body)
