@@ -24,6 +24,7 @@ class Endpoint():
 
         self.names = [name]
         self.wordcloud = WordCloud()
+        self.initials = ("".join([ele[0] for ele in address.split(".")[:-1] if ele])).upper()
 
     def __str__(self):
         return self.address

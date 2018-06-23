@@ -165,7 +165,38 @@ def extract_sender_messages(graph_group, messages_by_ep):
             logging.debug("   %s", message)
 
     return group_messages
+###################################################################################################   
+def find_cliques(full_graph):
+    threshold = 100
+    reg_graph = build_unidir_graph(full_graph, threshold)
+    #find distinct cliques
+    cliques = nx.find_cliques(reg_graph)
+    logging.debug('Cliques: ')
+    for clique in cliques:
+    	if len(clique) > 1:logging.debug('Size of clique is %s. Members are: %s', len(clique),([x.address for x in clique]))
 
+    
+
+    logging.debug('Connected components: ')
+    biggest_clique = max(nx.find_cliques(reg_graph), key= len)
+    logging.info('Size of biggest clique is %s. Members are: %s', len(biggest_clique), 
+                 ([x.address for x in biggest_clique]))
+    
+    return cliques, biggest_clique
+###################################################################################################
+def word_cloud(group_messages):
+    #word clouding
+    #create a dict that maps sender to their wordcloud of messages sent to this group
+	group_wordcloud = defaultdict(models.WordCloud)
+	for (i, sender) in enumerate(group_messages):
+
+        #create a list of message bodies for this sender
+		message_bodies = [m.body for m in group_messages[sender]]
+		group_wordcloud[sender].append(message_bodies)
+        
+		nr = 10
+		logging.info('Cloud for sender %s has length %s', sender.address, len(group_wordcloud[sender]))
+		logging.info('Cloud top %s for sender %s: %s', nr, sender.address, group_wordcloud[sender].topX(nr))
 ###################################################################################################
 def out_to_json(filename):
     global data
@@ -174,20 +205,44 @@ def out_to_json(filename):
             json.dump(data, outfile)
 
 ###################################################################################################
-def jsonify(graph):
+def jsonify(graph, focal_endpoint):
     global data
 
-    #TODO:This creates tons of edges to nowhere
-    for (i, node) in enumerate(graph):
+    weight_list = [graph[focal_endpoint][neighb]['weight'] for neighb in graph[focal_endpoint] if neighb != focal_endpoint]
+    focal_node_weight = sum(weight_list)
+    #making sure that we scale the edge weights correctly
+    min_focal_node_weight = min(weight_list)
+    max_focal_node_weight = max(weight_list)
+    min_edge_weight = 1
+    max_edge_weight = 3
+    try:
+        edge_weight_coef = (max_edge_weight - min_edge_weight) / (max_focal_node_weight - min_focal_node_weight)
+    except ZeroDivisionError:
+        edge_weight_coef = 1
+    
+    print('weights', str(focal_node_weight), str(min_focal_node_weight), str(max_focal_node_weight))
+
+    #draw nodes
+    for node in graph[focal_endpoint]:
+        node_weight = [graph[node][neighb]['weight'] for neighb in graph[node] if neighb != node]
+        node_tooltip = node.names[0] + ", " + "Total sent emails: " + str(node_weight)
+        #duplicate initials code until mbox with initials is generated
+        node_initials = ("".join([ele[0] for ele in node.address.split(".")[:-1] if ele])).upper()
+        node_dict = {"id": node.address, "label": node_initials, "shape": "circle", "color":"#97C2FC", "title": node_tooltip }
+        if node_dict not in data["nodes"]:
+            data["nodes"].append(node_dict)
+
+    #draw edges
+        
+    for (i,neighbor) in enumerate(graph[focal_endpoint]):
         #random limit
         if (i >= 1000):
             break
-
-        node_dict = {"id": node.address, "label": node.address}
-        if node_dict not in data["nodes"]:
-            data["nodes"].append(node_dict)
-        for succ in graph.successors(node):
-            data["edges"].append({"from":node.address, "to":succ.address})
+        edge_weight = edge_weight_coef * (graph[focal_endpoint][neighbor]['weight'] - min_focal_node_weight) + min_edge_weight
+        logging.debug('Drawing edge from %s to %s with width %s', focal_endpoint.address, neighbor.address, edge_weight)
+        data["edges"].append({"from":focal_endpoint.address, "to":neighbor.address, "arrows": "to",
+                        "length": 10, "width": edge_weight, "color": "#2B7CE9",
+                        "title": "40% formal, main topic BUSINESS"})
 
 ###################################################################################################
 def build_and_analyze(messages, visualize=False, watson_filename=None, json_filename=None):
@@ -196,55 +251,25 @@ def build_and_analyze(messages, visualize=False, watson_filename=None, json_file
     full_graph = build_graph(messages, False)
     basic_graph_stats(full_graph)
     top_communicators(full_graph)
-
-    threshold = 100
-    reg_graph = build_unidir_graph(full_graph, threshold)
-
-	#find distinct cliques
-    cliques = nx.find_cliques(reg_graph)
-
-    logging.debug('Cliques: ')
-    for clique in cliques:
-        if len(clique) > 1:
-            logging.debug('Size of clique is %s. Members are: %s', len(clique), 
-                          ([x.address for x in clique]))
-
-            jsonify(full_graph.subgraph(clique))
-    out_to_json(json_filename)
-
-    logging.debug('Connected components: ')
-    biggest_clique = max(nx.find_cliques(reg_graph), key= len)
-
-    logging.info('Size of biggest clique is %s. Members are: %s', len(biggest_clique), 
-                 ([x.address for x in biggest_clique]))
-
-    if visualize:
-        #gof = sorted(comps, key=lambda x: len(x), reverse=True )
-        #most_dense_group = gof[0]
-        logging.info('Members are: %s', str([x.address for x in biggest_clique]))
-        subgraph = reg_graph.subgraph(biggest_clique)
-        pos=nx.spring_layout(subgraph)
-        nx.draw(subgraph, pos, with_labels=True)
-        labels=dict([((u,v,),d['weight']) for u,v,d in subgraph.edges(data=True)])
-        nx.draw_networkx_edge_labels(subgraph,pos,edge_labels=labels)
-        plt.show()
-
+    cliques, biggest_clique = find_cliques(full_graph)
     group_messages = extract_sender_messages(biggest_clique, messages)
-
     if watson_filename:
         watson.run_watson(group_messages, watson_filename, 1)
     else:
         print("No watsoning")
+    
+    #word_cloud(group_messages)
+    person_email = 'louise.kitchen@enron.com'
+    person_endpoint = [node for node in full_graph.nodes if node.address == person_email][0]
+    personal_graph = build_personal_graph(full_graph, person_endpoint)
+    jsonify(personal_graph, person_endpoint)
+    out_to_json(json_filename)
 
-    #word clouding
-    #create a dict that maps sender to their wordcloud of messages sent to this group
-    group_wordcloud = defaultdict(models.WordCloud)
-    for (i, sender) in enumerate(group_messages):
-
-        #create a list of message bodies for this sender
-        message_bodies = [m.body for m in group_messages[sender]]
-        group_wordcloud[sender].append(message_bodies)
-        
-        nr = 10
-        logging.info('Cloud for sender %s has length %s', sender.address, len(group_wordcloud[sender]))
-        logging.info('Cloud top %s for sender %s: %s', nr, sender.address, group_wordcloud[sender].topX(nr))
+###################################################################################################
+def build_personal_graph(full_graph, person):
+    #takes an endpoint and creates the graph around him.
+    neighb = list(nx.all_neighbors(full_graph, person))
+    neighb.append(person)
+    personal_graph = full_graph.subgraph(neighb)
+    return personal_graph
+    
