@@ -205,35 +205,46 @@ def out_to_json(filename):
             json.dump(data, outfile)
 
 ###################################################################################################
-def jsonify(graph, focal_endpoint):
+def jsonify(graph, focal_endpoint, is_focal_edges_only = False):
     global data
-
+    logging.debug('JSONing a graph with %s nodes', len(graph[focal_endpoint]))
     weight_list = [graph[focal_endpoint][neighb]['weight'] for neighb in graph[focal_endpoint] if neighb != focal_endpoint]
     focal_node_weight = sum(weight_list)
     #making sure that we scale the edge weights correctly
     min_focal_node_weight = min(weight_list)
     max_focal_node_weight = max(weight_list)
     min_edge_weight = 1
-    max_edge_weight = 3
+    max_edge_weight = 5
     try:
         edge_weight_coef = (max_edge_weight - min_edge_weight) / (max_focal_node_weight - min_focal_node_weight)
     except ZeroDivisionError:
         edge_weight_coef = 1
     
-    print('weights', str(focal_node_weight), str(min_focal_node_weight), str(max_focal_node_weight))
+    logging.debug('Edge scaling weights: total weight = %s, minimum = %s, max weight= %s',
+                    str(focal_node_weight), str(min_focal_node_weight), str(max_focal_node_weight))
 
-    #draw nodes
+    #draw focal_node
+    focal_endpoint_tooltip = focal_endpoint.names[0] + ", " + "Total sent emails: " + str(focal_node_weight)
+    logging.debug('Creating node with tooltip %s', focal_endpoint_tooltip)
+    #duplicate initials code until mbox with initials is generated
+    focal_endpoint_initials = ("".join([ele[0] for ele in focal_endpoint.address.split(".")[:-1] if ele])).upper()
+    focal_endpoint_dict = {"id": focal_endpoint.address, "label": focal_endpoint_initials, "shape": "circle", "color":"#7BE141", "title": focal_endpoint_tooltip }
+    if focal_endpoint_dict not in data["nodes"]:
+        data["nodes"].append(focal_endpoint_dict)   
+    
+    #draw other nodes
+
     for node in graph[focal_endpoint]:
-        node_weight = [graph[node][neighb]['weight'] for neighb in graph[node] if neighb != node]
+        node_weight = sum([graph[node][neighb]['weight'] for neighb in graph[node] if neighb != node])
         node_tooltip = node.names[0] + ", " + "Total sent emails: " + str(node_weight)
+        logging.debug('Creating node with tooltip %s', node_tooltip)
         #duplicate initials code until mbox with initials is generated
         node_initials = ("".join([ele[0] for ele in node.address.split(".")[:-1] if ele])).upper()
         node_dict = {"id": node.address, "label": node_initials, "shape": "circle", "color":"#97C2FC", "title": node_tooltip }
         if node_dict not in data["nodes"]:
             data["nodes"].append(node_dict)
 
-    #draw edges
-        
+    #draw edges, only the ones from the focal for now
     for (i,neighbor) in enumerate(graph[focal_endpoint]):
         #random limit
         if (i >= 1000):
@@ -241,14 +252,32 @@ def jsonify(graph, focal_endpoint):
         edge_weight = edge_weight_coef * (graph[focal_endpoint][neighbor]['weight'] - min_focal_node_weight) + min_edge_weight
         logging.debug('Drawing edge from %s to %s with width %s', focal_endpoint.address, neighbor.address, edge_weight)
         data["edges"].append({"from":focal_endpoint.address, "to":neighbor.address, "arrows": "to",
-                        "length": 10, "width": edge_weight, "color": "#2B7CE9",
+                        "length": 100, "width": edge_weight, "color": "#2B7CE9",
                         "title": "40% formal, main topic BUSINESS"})
+    
+    #draw the other edges, but keep them at width min_edge_weight for now
+    if not is_focal_edges_only:
+        for node in graph:
+            if node != focal_endpoint:
+                for (i,neighbor) in enumerate(graph[node]):
+                    #random limit
+                    if (i >= 1000):
+                        break
+                    edge_weight = min_edge_weight
+                    logging.debug('Drawing edge from %s to %s with width %s', node.address, neighbor.address, edge_weight)
+                    data["edges"].append({"from":node.address, "to":neighbor.address, "arrows": "to",
+                                    "length": 100, "width": edge_weight, "color": "#2B7CE9",
+                                    "title": "40% formal, main topic BUSINESS"})
+
 
 ###################################################################################################
 def build_and_analyze(messages, visualize=False, watson_filename=None, json_filename=None):
     print('Progress | Start analyze')
     logging.info("Messages: %s", str(len(messages)))
     full_graph = build_graph(messages, False)
+    for node in full_graph:
+        logging.debug('%s has %s neighbors', node.address, len(full_graph[node]))
+    
     basic_graph_stats(full_graph)
     top_communicators(full_graph)
     cliques, biggest_clique = find_cliques(full_graph)
@@ -259,10 +288,15 @@ def build_and_analyze(messages, visualize=False, watson_filename=None, json_file
         print("No watsoning")
     
     #word_cloud(group_messages)
-    person_email = 'louise.kitchen@enron.com'
+
+    #for testing purposes, the following people are interesting:
+    #keith.holst@enron.com has 22 neighbors
+    #celeste.roberts@enron.com has 489 neighbors
+    #william.kelly@enron.com has 9 neighbors
+    person_email = 'keith.holst@enron.com'
     person_endpoint = [node for node in full_graph.nodes if node.address == person_email][0]
     personal_graph = build_personal_graph(full_graph, person_endpoint)
-    jsonify(personal_graph, person_endpoint)
+    jsonify(personal_graph, person_endpoint, True)
     out_to_json(json_filename)
 
 ###################################################################################################
