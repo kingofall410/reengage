@@ -9,11 +9,14 @@ function buildGraph(importData) {
         edges: importData.edges
     };
     var options = {
-        physics:{
-        enabled: false
-        }
+        "physics": {
+            "enabled": true
+        },
+        "edges": {
+            "smooth": false
+          }
     };
-
+    console.log(data)
     // initialize your network!
     var network = new vis.Network(container, data, options);
 }
