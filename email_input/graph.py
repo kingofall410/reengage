@@ -252,7 +252,7 @@ def jsonify(graph, focal_endpoint, is_focal_edges_only = False):
         edge_weight = edge_weight_coef * (graph[focal_endpoint][neighbor]['weight'] - min_focal_node_weight) + min_edge_weight
         logging.debug('Drawing edge from %s to %s with width %s', focal_endpoint.address, neighbor.address, edge_weight)
         data["edges"].append({"from":focal_endpoint.address, "to":neighbor.address, "arrows": "to",
-                        "length": 100, "width": edge_weight, "color": "#2B7CE9",
+                        "length": 100, "width": edge_weight, "color": {"color": "#2B7CE9"},
                         "title": "40% formal, main topic BUSINESS"})
     
     #draw the other edges, but keep them at width min_edge_weight for now
@@ -293,7 +293,7 @@ def build_and_analyze(messages, visualize=False, watson_filename=None, json_file
     #keith.holst@enron.com has 22 neighbors
     #celeste.roberts@enron.com has 489 neighbors
     #william.kelly@enron.com has 9 neighbors
-    person_email = 'keith.holst@enron.com'
+    person_email = 'william.kelly@enron.com'
     person_endpoint = [node for node in full_graph.nodes if node.address == person_email][0]
     personal_graph = build_personal_graph(full_graph, person_endpoint)
     jsonify(personal_graph, person_endpoint, True)
