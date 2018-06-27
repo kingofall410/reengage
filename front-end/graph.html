@@ -13,7 +13,10 @@
     </style>
 </head>
 <body>
-    <input type="file" id="files" name="files[]"/>
+    <input type="file" id="files" name="files[]"/><br>
+    Red Group: <input type="checkbox" id="redgroup" onclick="updateGroupVisualization()"/><br>
+    Blue Group: <input type="checkbox" id="bluegroup" onclick="updateGroupVisualization()"/><br>
+    Green Group: <input type="checkbox" id="greengroup" onclick="updateGroupVisualization()"/><br>
     <div id="mynetwork"></div>
 
     <script type="text/javascript">
