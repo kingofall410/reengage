@@ -11,7 +11,15 @@ function buildGraph(importData) {
     var options = {
         physics:{
         enabled: false
-        }
+        },
+        "edges": {
+            "smooth": {
+              "type": "discrete",
+              "forceDirection": "none",
+              "roundness": 0
+            }
+          }
+        
     };
 
     // initialize your network!
