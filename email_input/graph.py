@@ -1,4 +1,4 @@
-import logging
+import logging, random
 import subprocess as sp
 import networkx as nx
 import re, json, numpy as np
@@ -231,13 +231,18 @@ def jsonify(graph, focal_endpoint, is_display_fringe_edges = True):
     focal_endpoint_tooltip = focal_endpoint.names[0] + "<br>Total sent emails: " + str(focal_node_weight)
     logging.debug('Creating node with tooltip %s', focal_endpoint_tooltip)
     
+    #put anything you want in here, begin the string with an underscore, make sure they're unique
+    group_name_list = ["_group 1", "_group 2", "_group 3", "_group 4", "_group 5", "_group 6", "_group 7"]
+
     #duplicate initials code until mbox with initials is generated
 
     focal_endpoint_initials = ("".join([ele[0] for ele in 
                                focal_endpoint.address.split(".")[:-1] if ele])).upper()
     focal_endpoint_dict = {"id": focal_endpoint.address, "label": focal_endpoint_initials, 
-                           "shape": "circle", "color":"#7BE141", "title": focal_endpoint_tooltip,
-                           "inRedGroup": True,  "inBlueGroup": True, "inGreenGroup": True, "x": 0, "y": 0 }
+                           "shape": "circle", "color":"#7BE141", "title": focal_endpoint_tooltip, "x": 0, "y": 0 }
+
+    for group_name in group_name_list:
+            focal_endpoint_dict[group_name] = True
 
     if focal_endpoint_dict not in data["nodes"]:
         data["nodes"].append(focal_endpoint_dict)   
@@ -274,8 +279,11 @@ def jsonify(graph, focal_endpoint, is_display_fringe_edges = True):
         node_y = np.sin(2 * i * np.pi / nr_nodes ) * (circle_rad / node_edge_weight)
         
         node_dict = {"id": node.address, "label": node_initials, "shape": "circle", 
-                     "color":"#97C2FC", "title": node_tooltip, "x": node_x, "y": node_y, "inRedGroup": in_red_group,
-                     "inGreenGroup": in_green_group, "inBlueGroup": in_blue_group, "group": "defaultGroup" }
+                     "color":"#97C2FC", "title": node_tooltip, "x": node_x, "y": node_y, "group": "defaultGroup" }
+
+        #you'll want to store clique membership as an attribute on the graph, I'll do it randomly for now
+        for group_name in group_name_list:
+            node_dict[group_name] = bool(random.getrandbits(1))
 
         if node_dict not in data["nodes"]:
             data["nodes"].append(node_dict)
@@ -338,7 +346,7 @@ def build_and_analyze(messages, visualize=False, watson_filename=None, json_file
     #keith.holst@enron.com has 22 neighbors
     #celeste.roberts@enron.com has 489 neighbors
     #william.kelly@enron.com has 9 neighbors
-    person_email = 'keith.holst@enron.com'
+    person_email = 'william.kelly@enron.com'
     person_endpoint = [node for node in full_graph.nodes if node.address == person_email][0]
     personal_graph = build_personal_graph(full_graph, person_endpoint)
     jsonify(personal_graph, person_endpoint, False)

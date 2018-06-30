@@ -1,6 +1,7 @@
 <html>
 <head>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/tinycolor/1.4.1/tinycolor.min.js"><</script>
     <script type="text/javascript" src="fileImport.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" rel="stylesheet" type="text/css" />
 
@@ -13,10 +14,10 @@
     </style>
 </head>
 <body>
-    <input type="file" id="files" name="files[]"/><br>
-    Red Group: <input type="checkbox" id="redgroup" onclick="updateGroupVisualization()"/><br>
-    Blue Group: <input type="checkbox" id="bluegroup" onclick="updateGroupVisualization()"/><br>
-    Green Group: <input type="checkbox" id="greengroup" onclick="updateGroupVisualization()"/><br>
+    <input type="file" id="files" name="files[]"/>
+    Segmented Borders: <input type="checkbox" id="segmented" onclick="updateGroupVisualization()" checked/><br>
+    
+    <div id="groups"></div>
     <div id="mynetwork"></div>
 
     <script type="text/javascript">

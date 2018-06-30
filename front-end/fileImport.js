@@ -31,6 +31,8 @@ function buildGraph(importData) {
     options["groups"] = importData.groups;
     
     console.log(options)
+
+    buildCheckboxes();
     
     // initialize your network!
     network = new vis.Network(container, data, options);
@@ -87,56 +89,97 @@ function readTextFile(file) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 function updateGroupVisualization() {
-    network.redraw()
+    network.redraw();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+function buildCheckboxes() {
+    //pick a node, any node
+    
+    let node = nodes.get()[0];
+    let checkboxDiv = document.getElementById("groups");
+    for (key in node) {
+        console.log(key)
+        if (key.startsWith("_")) {
+            let groupName = key.slice(1);
+            let checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.id = key;
+            color = '#'+(Math.random()*0xFFFFFF<<0).toString(16);
+            while (!tinycolor(color).isDark()) {
+                color = '#'+(Math.random()*0xFFFFFF<<0).toString(16);
+            }
+            checkbox.value = color;
+            checkbox.addEventListener("click", updateGroupVisualization);
+            let label = document.createElement('label')
+            label.htmlFor = "groupName";
+            label.appendChild(document.createTextNode(groupName));
+
+            checkboxDiv.appendChild(checkbox);
+            checkboxDiv.appendChild(label);
+        }
+    }
+    
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 function updateBorders(ctx) {
-    nodeArray = nodes.get();
-    redCheckbox = document.getElementById('redgroup');
-    blueCheckbox = document.getElementById('bluegroup');
-    greenCheckbox = document.getElementById('greengroup');
-
+    let nodeArray = nodes.get();
+    console.log("updateBorders")
+    let isSegmented = document.getElementById('segmented').checked;
+    
     for (element in nodeArray) {
 
-        node = nodeArray[element];
-        var nodePosition = network.getPositions([node.id]);
-        var nodeBox = network.getBoundingBox(node.id);
-        offset = 0;
-        isInGroup = false;
+        let node = nodeArray[element];
+        let nodePosition = network.getPositions([node.id]);
+        //let isInGroup = false;
 
-        if (redCheckbox.checked && node.inRedGroup) {
-            //TODO:why is this number (22) different from the height constraints above?
-            ctx.beginPath();
-            ctx.strokeStyle = '#FF0000';
-            ctx.lineWidth = 4;
-            ctx.arc(nodePosition[node.id].x, nodePosition[node.id].y, 20, 0, 2 * Math.PI);
-            ctx.stroke();
-            offset += ctx.lineWidth;
-            isInGroup = true;
+        let activeGroups = 0;
+        for (key in node) {
+            if (key.startsWith("_")) {
+                //console.log(key)
+                activeGroups += (node[key]*document.getElementById(key).checked);
+            }
         }
 
-        if (greenCheckbox.checked && node.inGreenGroup) {
-            //TODO:why is this number (22) different from the height constraints above?
-            ctx.beginPath();
-            ctx.strokeStyle = '#00FF00';
-            ctx.lineWidth = 4;
-            ctx.arc(nodePosition[node.id].x, nodePosition[node.id].y, 20+offset, 0, 2 * Math.PI);
-            ctx.stroke();
-            offset += ctx.lineWidth;
-            isInGroup = true;
-        }
+        //console.log(node.label, activeGroups)
+        let step = 0;
+        if (activeGroups > 1) {
+            step = 0.1;
+        } 
+        let arcLength = 2*Math.PI;
+        let drawLength = arcLength;
+        let arcStart = 0;
+        let radius = 18;
 
-        if (blueCheckbox.checked && node.inBlueGroup) {
-            //TODO:why is this number (22) different from the height constraints above?
-            ctx.beginPath();
-            ctx.strokeStyle = '#0000FF';
-            ctx.lineWidth = 4;
-            ctx.arc(nodePosition[node.id].x, nodePosition[node.id].y, 20+offset, 0, 2 * Math.PI);
-            ctx.stroke();
-            offset += ctx.lineWidth;
-            isInGroup = true;
+        if (isSegmented) {
+            arcLength = arcLength/activeGroups;
+            drawLength = arcLength-step;
+        } 
+
+        for (key in node) {
+            if (key.startsWith("_")) {
+                let checkbox = document.getElementById(key);
+                if (node[key] && checkbox.checked) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = checkbox.value;
+                    console.log(checkbox.value)
+                    ctx.lineWidth = 4;
+                    ctx.arc(nodePosition[node.id].x, nodePosition[node.id].y, radius, arcStart, arcStart+drawLength);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.strokeStyle = "#FFFFFF"
+                    ctx.arc(nodePosition[node.id].x, nodePosition[node.id].y, radius, arcStart+drawLength, arcStart+arcLength);
+                    ctx.stroke();
+                    if (isSegmented) {   
+                        arcStart += arcLength;
+                    } else {                
+                        radius += ctx.lineWidth;
+                    }
+                }
+            }
         }
+        
 
         /*if (blueCheckbox.checked || redCheckbox.checked || greenCheckbox.checked) {
             if (!isInGroup) {
