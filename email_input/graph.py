@@ -16,6 +16,7 @@ def build_graph(messages_by_ep, is_show_graph):
     G = nx.DiGraph()
 
     for (endpoint, messages) in messages_by_ep.values():
+        print(endpoint)
         G.add_node(endpoint)
 
         for message in messages:
@@ -229,6 +230,11 @@ def jsonify(graph, focal_endpoint, cliques, is_display_fringe_edges = True):
     #list of things that are filtered out:
     #   edges to self (emails to self)
     #
+    print (len(cliques))
+    for clique in cliques:
+        print("-------------------"+str(len(clique)))
+        for ep in clique:
+            print(ep)
     global data
     logging.debug('JSONing a graph with %s nodes', len(graph[focal_endpoint]))
     weight_list = [graph[focal_endpoint][neighb]['weight'] for neighb in graph[focal_endpoint] if neighb != focal_endpoint]
@@ -252,62 +258,51 @@ def jsonify(graph, focal_endpoint, cliques, is_display_fringe_edges = True):
     logging.debug('Creating node with tooltip %s', focal_endpoint_tooltip)
     
     #put anything you want in here, begin the string with an underscore, make sure they're unique
-    group_name_list = ["_group 1", "_group 2", "_group 3", "_group 4", "_group 5", "_group 6", "_group 7"]
+    group_name_list = ["_Clique "+str(i) for i in range(len(cliques))]
 
     #duplicate initials code until mbox with initials is generated
 
     focal_endpoint_initials = ("".join([ele[0] for ele in 
                                focal_endpoint.address.split(".")[:-1] if ele])).upper()
     focal_endpoint_dict = {"id": focal_endpoint.address, "label": focal_endpoint_initials, 
-                           "shape": "circle", "color":"#7BE141", "title": focal_endpoint_tooltip, "x": 0, "y": 0 }
+                           "shape": "circle", "color":"#7BE141", "title": focal_endpoint_tooltip}
 
-    for group_name in group_name_list:
-            focal_endpoint_dict[group_name] = True
+    for i, group_name in enumerate(group_name_list):
+            focal_endpoint_dict[group_name] = focal_endpoint in cliques[i]
 
     if focal_endpoint_dict not in data["nodes"]:
         data["nodes"].append(focal_endpoint_dict)   
     
     #draw other nodes
-    in_red_group = False#has sent more than 100 emails
-    in_blue_group = False#has same first initial as target
-    in_green_group = False#has same number of letters in full name within 3
-
     for i,node in enumerate(graph[focal_endpoint]):
-        nr_nodes = len(graph[focal_endpoint])
-        node_weight = sum([graph[node][neighb]['weight'] for neighb in graph[node] if neighb != node])
+        if node.address != focal_endpoint.address:
+            nr_nodes = len(graph[focal_endpoint])
+            node_weight = sum([graph[node][neighb]['weight'] for neighb in graph[node] if neighb != node])
 
-        if focal_endpoint in graph[node]:
-            emails_to_focal = graph[node][focal_endpoint]['weight']
-        else:
-            emails_to_focal = 0
+            if focal_endpoint in graph[node]:
+                emails_to_focal = graph[node][focal_endpoint]['weight']
+            else:
+                emails_to_focal = 0
 
-        node_tooltip = "<br>".join([node.names[0], "Total sent emails: " + str(node_weight),
-                                "   Emails from focal: " + str(graph[focal_endpoint][node]['weight']),
-                                "   Emails to focal: " + str(emails_to_focal)])
-        logging.debug('Creating node with tooltip %s', node_tooltip)
-        
-        in_red_group = node in cliques[0]
-        if len(cliques) > 1: in_blue_group =  node in cliques[1]
-        if len(cliques) > 2: in_green_group = node in cliques[2 ]
-        #length_diff = len(node.names[0]) - len(focal_endpoint.names[0])
-        #in_green_group = (length_diff >= -3 and length_diff <= 3)
-        
-        #duplicate initials code until mbox with initials is generated
-        node_initials = ("".join([ele[0] for ele in node.address.split(".")[:-1] if ele])).upper()
-        node_edge_weight = edge_weight_coef * (graph[focal_endpoint][node]['weight'] - min_focal_node_weight) + min_edge_weight
-        circle_rad = 200
-        node_x = np.cos(2 * i * np.pi / nr_nodes ) * (circle_rad / node_edge_weight)
-        node_y = np.sin(2 * i * np.pi / nr_nodes ) * (circle_rad / node_edge_weight)
-        
-        node_dict = {"id": node.address, "label": node_initials, "shape": "circle", 
-                     "color":"#97C2FC", "title": node_tooltip, "x": node_x, "y": node_y, "group": "defaultGroup" }
+            node_tooltip = "<br>".join([node.names[0], "Total sent emails: " + str(node_weight),
+                                    "   Emails from focal: " + str(graph[focal_endpoint][node]['weight']),
+                                    "   Emails to focal: " + str(emails_to_focal)])
+            logging.debug('Creating node with tooltip %s', node_tooltip)
+            
+            #duplicate initials code until mbox with initials is generated
+            node_initials = ("".join([ele[0] for ele in node.address.split(".")[:-1] if ele])).upper()
+            node_edge_weight = edge_weight_coef * (graph[focal_endpoint][node]['weight'] - min_focal_node_weight) + min_edge_weight
+            
 
-        #you'll want to store clique membership as an attribute on the graph, I'll do it randomly for now
-        for group_name in group_name_list:
-            node_dict[group_name] = bool(random.getrandbits(1))
+            node_dict = {"id": node.address, "label": node_initials, "shape": "circle", 
+                        "color":"#97C2FC", "title": node_tooltip, "group": "defaultGroup" }
 
-        if node_dict not in data["nodes"]:
-            data["nodes"].append(node_dict)
+            for i, group_name in enumerate(group_name_list):
+
+                node_dict[group_name] = node in cliques[i]
+            
+            if node_dict not in data["nodes"]:
+                data["nodes"].append(node_dict)
 
     #create edges, only the ones from the focal
     for (i,neighbor) in enumerate(graph[focal_endpoint]):
@@ -361,7 +356,8 @@ def build_and_analyze(messages, visualize=False, watson_filename=None, json_file
     #keith.holst@enron.com has 22 neighbors
     #celeste.roberts@enron.com has 489 neighbors
     #william.kelly@enron.com has 9 neighbors
-    person_email = 'william.kelly@enron.com'
+    #'kristin.walsh@enron.com'
+    person_email = 'kristin.walsh@enron.com'
     person_endpoint = [node for node in full_graph.nodes if node.address == person_email][0]
     personal_graph = build_personal_graph(full_graph, person_endpoint)
     

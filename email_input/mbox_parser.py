@@ -114,14 +114,16 @@ def parse(infile, outfile):
             filtered_recipients = filter.filter_list(recipients_add, "mail")
 
             if filtered_senders and filtered_recipients:
-
+                sender = None
+                if sender_name:
+                    sender = sender_name[0]
                 sender_tuple = Endpoint.get_or_create(messages_by_endpoint, sender_add[0], 
-                                                      sender_name[0], xfrom_name)
+                                                      sender, xfrom_name)
 
                 #Create Message object
                 subject = message['Subject']
                 date = dateutil.parser.parse(message['Date'])
-                body = message.get_payload()
+                body = ""#message.get_payload() -- commented out to get gmail working
                 sender_tuple[0].update_wordcloud(body)
 
                 mess = Message(id=id, sender=sender_tuple[0], subject=subject, datetime=date, 
