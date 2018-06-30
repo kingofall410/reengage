@@ -166,23 +166,43 @@ def extract_sender_messages(graph_group, messages_by_ep):
 
     return group_messages
 ###################################################################################################   
-def find_cliques(full_graph):
-    threshold = 100
-    reg_graph = build_unidir_graph(full_graph, threshold)
+def find_cliques(full_graph, threshhold = 100):
+    reg_graph = build_unidir_graph(full_graph, threshhold)
     #find distinct cliques
-    cliques = nx.find_cliques(reg_graph)
+    cliques = list(nx.find_cliques(reg_graph))
     logging.debug('Cliques: ')
-    for clique in cliques:
-    	if len(clique) > 1:logging.debug('Size of clique is %s. Members are: %s', len(clique),([x.address for x in clique]))
-
-    
-
-    logging.debug('Connected components: ')
+    for i,clique in enumerate(cliques):
+    	if len(clique) > 1:logging.debug('Size of clique %s is %s. Members are: %s', str(i), len(clique),([x.address for x in clique]))
     biggest_clique = max(nx.find_cliques(reg_graph), key= len)
     logging.info('Size of biggest clique is %s. Members are: %s', len(biggest_clique), 
                  ([x.address for x in biggest_clique]))
     
     return cliques, biggest_clique
+###################################################################################################   
+def find_cliques_replies_to_all(messages_by_ep, threshhold = 1):
+    #['eric.bass@enron.com', 'brian.hoskins@enron.com', 'lenine.jeganathan@enron.com', 'hector.campos@enron.com'] => weight 6
+    #['leslie.hansen@enron.com', 'tana.jones@enron.com'] => weight 132
+    cliquedict = {}
+    for (endpoint, messages) in messages_by_ep.values():
+        logging.debug('Endpoint %s', endpoint.address)
+        for message in messages:
+            groupset = set(message.receivers)
+            groupset.add(message.sender)
+            allpeople = frozenset(groupset)
+            if not allpeople in cliquedict:
+                cliquedict[allpeople] = {}
+            if not message.sender in cliquedict[allpeople].keys():
+                cliquedict[allpeople][message.sender] = 1
+            else:
+                cliquedict[allpeople][message.sender] = cliquedict[allpeople][message.sender] + 1
+                           
+    group_comm_dict = {}
+    for (group, senders) in cliquedict.items():
+        if len(senders) == len(group):
+            group_comm_dict[group] = min([value for value in senders.values()])
+            #logging.debug('Dict has values of %s for members %s',[cliquedict[group].values()], [mem.address for mem in senders])
+    
+    return group_comm_dict
 ###################################################################################################
 def word_cloud(group_messages):
     #word clouding
@@ -205,7 +225,7 @@ def out_to_json(filename):
             json.dump(data, outfile)
     
 ###################################################################################################
-def jsonify(graph, focal_endpoint, is_display_fringe_edges = True):
+def jsonify(graph, focal_endpoint, cliques, is_display_fringe_edges = True):
     #list of things that are filtered out:
     #   edges to self (emails to self)
     #
@@ -266,10 +286,11 @@ def jsonify(graph, focal_endpoint, is_display_fringe_edges = True):
                                 "   Emails to focal: " + str(emails_to_focal)])
         logging.debug('Creating node with tooltip %s', node_tooltip)
         
-        in_red_group = node_weight > 100
-        in_blue_group = node.names[0][0] == focal_endpoint.names[0][0]
-        length_diff = len(node.names[0]) - len(focal_endpoint.names[0])
-        in_green_group = (length_diff >= -3 and length_diff <= 3)
+        in_red_group = node in cliques[0]
+        if len(cliques) > 1: in_blue_group =  node in cliques[1]
+        if len(cliques) > 2: in_green_group = node in cliques[2 ]
+        #length_diff = len(node.names[0]) - len(focal_endpoint.names[0])
+        #in_green_group = (length_diff >= -3 and length_diff <= 3)
         
         #duplicate initials code until mbox with initials is generated
         node_initials = ("".join([ele[0] for ele in node.address.split(".")[:-1] if ele])).upper()
@@ -333,7 +354,25 @@ def build_and_analyze(messages, visualize=False, watson_filename=None, json_file
     
     basic_graph_stats(full_graph)
     top_communicators(full_graph)
-    cliques, biggest_clique = find_cliques(full_graph)
+    new_cliques = find_cliques_replies_to_all(messages)
+    sorted_cliques = sorted(new_cliques, key=new_cliques.get, reverse = True)
+    biggest_clique = sorted_cliques[0]
+    #for testing purposes, the following people are interesting:
+    #keith.holst@enron.com has 22 neighbors
+    #celeste.roberts@enron.com has 489 neighbors
+    #william.kelly@enron.com has 9 neighbors
+    person_email = 'william.kelly@enron.com'
+    person_endpoint = [node for node in full_graph.nodes if node.address == person_email][0]
+    personal_graph = build_personal_graph(full_graph, person_endpoint)
+    
+    for cliq in sorted_cliques:
+        logging.debug("Clique: %s with weight %s", [x.address for x in cliq], new_cliques[cliq])
+    focal_cliques = [cliq for cliq in new_cliques.keys() if person_endpoint in cliq]    
+    jsonify(personal_graph, person_endpoint, focal_cliques, False)
+    out_to_json(json_filename)
+
+
+    #watsoning
     group_messages = extract_sender_messages(biggest_clique, messages)
     if watson_filename:
         watson.run_watson(group_messages, watson_filename, 1)
@@ -342,15 +381,7 @@ def build_and_analyze(messages, visualize=False, watson_filename=None, json_file
     
     #word_cloud(group_messages)
 
-    #for testing purposes, the following people are interesting:
-    #keith.holst@enron.com has 22 neighbors
-    #celeste.roberts@enron.com has 489 neighbors
-    #william.kelly@enron.com has 9 neighbors
-    person_email = 'william.kelly@enron.com'
-    person_endpoint = [node for node in full_graph.nodes if node.address == person_email][0]
-    personal_graph = build_personal_graph(full_graph, person_endpoint)
-    jsonify(personal_graph, person_endpoint, False)
-    out_to_json(json_filename)
+
 
 ###################################################################################################
 def build_personal_graph(full_graph, person):
