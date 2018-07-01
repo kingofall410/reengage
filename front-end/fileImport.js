@@ -6,7 +6,7 @@ function buildGraph(importData) {
     
     console.log(importData);
     // create a network
-    var container = document.getElementById('mynetwork');
+    var container = document.getElementById('network');
 
     nodes = new vis.DataSet(importData.nodes);
     edges = new vis.DataSet(importData.edges);
@@ -17,7 +17,9 @@ function buildGraph(importData) {
     };
     var options = {
         "physics": {
-            "enabled": true
+            "enabled": true,
+            "timestep": 0.2,
+            "adaptiveTimestep": true
         },
         "edges": {
             "smooth": false
@@ -25,14 +27,18 @@ function buildGraph(importData) {
         "nodes": {
             "heightConstraint": 28,
             "widthConstraint": 28
-        }
+        },
+        "layout": {
+            improvedLayout:false
+        },
+        
     };
 
     options["groups"] = importData.groups;
     
     console.log(options)
 
-    buildCheckboxes();
+    buildCheckboxes(importData.cliqueDefinitions);
     
     // initialize your network!
     network = new vis.Network(container, data, options);
@@ -93,31 +99,56 @@ function updateGroupVisualization() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-function buildCheckboxes() {
-    //pick a node, any node
-    
-    let node = nodes.get()[0];
-    let checkboxDiv = document.getElementById("groups");
-    for (key in node) {
-        console.log(key)
-        if (key.startsWith("_")) {
-            let groupName = key.slice(1);
-            let checkbox = document.createElement("input");
-            checkbox.type = "checkbox";
-            checkbox.id = key;
-            color = '#'+(Math.random()*0xFFFFFF<<0).toString(16);
-            while (!tinycolor(color).isDark()) {
-                color = '#'+(Math.random()*0xFFFFFF<<0).toString(16);
-            }
-            checkbox.value = color;
-            checkbox.addEventListener("click", updateGroupVisualization);
-            let label = document.createElement('label')
-            label.htmlFor = "groupName";
-            label.appendChild(document.createTextNode(groupName));
-
-            checkboxDiv.appendChild(checkbox);
-            checkboxDiv.appendChild(label);
+function checkAllCliques() {
+    let selectall = document.getElementById("selectall");
+    let checkboxDiv = document.getElementById("filters");
+    for (i = 0; i < checkboxDiv.children.length; i++) {
+        if (checkboxDiv.children[i] && checkboxDiv.children[i].id.startsWith("_")) {
+            checkboxDiv.children[i].checked = selectall.checked;
         }
+    }
+    updateGroupVisualization();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+function buildCheckboxes(cd) {
+    
+    let checkboxDiv = document.getElementById("filters");
+    let selectall = document.createElement("input");
+    selectall.type = "checkbox";
+    selectall.id = "selectall";
+    selectall.addEventListener("click", checkAllCliques);
+
+    let label = document.createElement('label')
+    label.htmlFor = selectall.id;
+    label.appendChild(document.createTextNode("Select All"));
+
+    checkboxDiv.appendChild(selectall);
+    checkboxDiv.appendChild(label);
+    checkboxDiv.appendChild(document.createElement("br"));
+
+    for (clique_id in cd) {
+
+        clique = cd[clique_id];
+        let groupName = clique["name"].slice(1);
+        let checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.id = clique["name"];
+        color = '#'+(Math.random()*0xFFFFFF<<0).toString(16);
+        while (tinycolor(color).isLight()) {
+            color = '#'+(Math.random()*0xFFFFFF<<0).toString(16);
+        }
+        checkbox.value = color;
+        checkbox.addEventListener("click", updateGroupVisualization);
+        label = document.createElement('label')
+        label.htmlFor = checkbox.id;
+        label.appendChild(document.createTextNode(groupName));
+
+        checkboxDiv.appendChild(checkbox);
+        checkboxDiv.appendChild(label);
+        checkboxDiv.appendChild(document.createElement("br"));
+        checkboxDiv.appendChild(document.createTextNode(clique["description"]));
+        checkboxDiv.appendChild(document.createElement("br"));
     }
     
 }

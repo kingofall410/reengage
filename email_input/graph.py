@@ -9,14 +9,13 @@ from email_input import models
 
 import matplotlib.pyplot as plt
 
-data = {"nodes": [], "edges": [], "groups": {}}
+data = {"nodes": [], "edges": [], "groups": {}, "cliqueDefinitions": []}
 
 ###################################################################################################
 def build_graph(messages_by_ep, is_show_graph):
     G = nx.DiGraph()
 
     for (endpoint, messages) in messages_by_ep.values():
-        print(endpoint)
         G.add_node(endpoint)
 
         for message in messages:
@@ -230,11 +229,6 @@ def jsonify(graph, focal_endpoint, cliques, is_display_fringe_edges = True):
     #list of things that are filtered out:
     #   edges to self (emails to self)
     #
-    print (len(cliques))
-    for clique in cliques:
-        print("-------------------"+str(len(clique)))
-        for ep in clique:
-            print(ep)
     global data
     logging.debug('JSONing a graph with %s nodes', len(graph[focal_endpoint]))
     weight_list = [graph[focal_endpoint][neighb]['weight'] for neighb in graph[focal_endpoint] if neighb != focal_endpoint]
@@ -258,7 +252,18 @@ def jsonify(graph, focal_endpoint, cliques, is_display_fringe_edges = True):
     logging.debug('Creating node with tooltip %s', focal_endpoint_tooltip)
     
     #put anything you want in here, begin the string with an underscore, make sure they're unique
-    group_name_list = ["_Clique "+str(i) for i in range(len(cliques))]
+    data["cliqueDefinitions"] = [{
+                                 "name": "_Clique "+str(i),
+                                 "description": "This is random text that tells you about the \
+                                                 clique.  It should be stored along with the clique \
+                                                 somewhere much earlier than this."
+                                } for i in range(len(cliques))]
+
+    #create groups
+    data["groups"] = {
+                      "defaultGroup": {"color": {"background": "#97C2FCFF", "border":"97C2FCFF"}, "borderWidth":0},
+                      "inactiveGroup": {"color": {"background": "#97C2FC88", "border":"97C2FC88"}, "borderWidth":0}
+                     }
 
     #duplicate initials code until mbox with initials is generated
 
@@ -267,8 +272,8 @@ def jsonify(graph, focal_endpoint, cliques, is_display_fringe_edges = True):
     focal_endpoint_dict = {"id": focal_endpoint.address, "label": focal_endpoint_initials, 
                            "shape": "circle", "color":"#7BE141", "title": focal_endpoint_tooltip}
 
-    for i, group_name in enumerate(group_name_list):
-            focal_endpoint_dict[group_name] = focal_endpoint in cliques[i]
+    for i, clique_def in enumerate(data["cliqueDefinitions"]):
+            focal_endpoint_dict[clique_def["name"]] = focal_endpoint in cliques[i]
 
     if focal_endpoint_dict not in data["nodes"]:
         data["nodes"].append(focal_endpoint_dict)   
@@ -297,9 +302,8 @@ def jsonify(graph, focal_endpoint, cliques, is_display_fringe_edges = True):
             node_dict = {"id": node.address, "label": node_initials, "shape": "circle", 
                         "color":"#97C2FC", "title": node_tooltip, "group": "defaultGroup" }
 
-            for i, group_name in enumerate(group_name_list):
-
-                node_dict[group_name] = node in cliques[i]
+            for i, clique_def in enumerate(data["cliqueDefinitions"]):
+                node_dict[clique_def["name"]] = node in cliques[i]
             
             if node_dict not in data["nodes"]:
                 data["nodes"].append(node_dict)
@@ -316,12 +320,7 @@ def jsonify(graph, focal_endpoint, cliques, is_display_fringe_edges = True):
             data["edges"].append({"from":focal_endpoint.address, "to":neighbor.address, "color": {"color": "#97C2FC", "inherit": 'false'}, "arrows": "to",
                             "length": 100, "width": edge_weight,
                             "title": "Total emails: " + str(graph[focal_endpoint][neighbor]['weight']) + ". "})
-    
-    #create groups
-    data["groups"] = {
-                      "defaultGroup": {"color": {"background": "#97C2FCFF", "border":"97C2FCFF"}, "borderWidth":0},
-                      "inactiveGroup": {"color": {"background": "#97C2FC88", "border":"97C2FC88"}, "borderWidth":0}
-                     }
+
     
     #create the other edges, but keep them at width min_edge_weight for now
     if is_display_fringe_edges:
@@ -357,7 +356,7 @@ def build_and_analyze(messages, visualize=False, watson_filename=None, json_file
     #celeste.roberts@enron.com has 489 neighbors
     #william.kelly@enron.com has 9 neighbors
     #'kristin.walsh@enron.com'
-    person_email = 'kristin.walsh@enron.com'
+    person_email = 'keith.holst@enron.com'
     person_endpoint = [node for node in full_graph.nodes if node.address == person_email][0]
     personal_graph = build_personal_graph(full_graph, person_endpoint)
     

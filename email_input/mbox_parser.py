@@ -6,6 +6,8 @@ import operator
 import pickle
 from util import filter, progress
 import dateutil.parser
+import datetime
+from datetime import date
 
 from email_input.models import Endpoint, Message
 
@@ -122,7 +124,12 @@ def parse(infile, outfile):
 
                 #Create Message object
                 subject = message['Subject']
-                date = dateutil.parser.parse(message['Date'])
+
+                try:
+                    date = dateutil.parser.parse(message['Date'])
+                except (ValueError):
+                    date = datetime.date(1900, 1, 1)
+
                 body = ""#message.get_payload() -- commented out to get gmail working
                 sender_tuple[0].update_wordcloud(body)
 
