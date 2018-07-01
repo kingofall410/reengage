@@ -17,7 +17,9 @@ function buildGraph(importData) {
     };
     var options = {
         "physics": {
-            "enabled": true
+            "enabled": true,
+            "timestep": 0.2,
+            "adaptiveTimestep": true
         },
         "edges": {
             "smooth": false
@@ -25,9 +27,13 @@ function buildGraph(importData) {
         "nodes": {
             "heightConstraint": 28,
             "widthConstraint": 28
-        }
+        },
+        "layout": {
+            improvedLayout:false
+        },
+        
     };
-
+    
     options["groups"] = importData.groups;
     
     console.log(options)

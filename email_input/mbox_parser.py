@@ -4,6 +4,7 @@ import random
 import logging
 import operator
 import pickle
+import datetime
 from util import filter, progress
 import dateutil.parser
 
@@ -103,7 +104,10 @@ def parse(infile, outfile):
             if not id:
                 logging.warning("------No message ID found: %s", str(message))
 
-            sender_add, sender_name = parse_endpoints(message['From'])
+            try:
+                sender_add, sender_name = parse_endpoints(message['From'])
+            except TypeError:
+                print(message['From]'])
             recipients_add, recipients_name = parse_endpoints(message['To'])
             xfrom_name = parse_xfrom(message['X-From'])
             xto_names = parse_xto(message['X-To'])
@@ -122,7 +126,7 @@ def parse(infile, outfile):
 
                 #Create Message object
                 subject = message['Subject']
-                date = dateutil.parser.parse(message['Date'])
+                date = datetime.date(2018,1,1)
                 body = ""#message.get_payload() -- commented out to get gmail working
                 sender_tuple[0].update_wordcloud(body)
 

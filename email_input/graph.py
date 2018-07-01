@@ -16,7 +16,7 @@ def build_graph(messages_by_ep, is_show_graph):
     G = nx.DiGraph()
 
     for (endpoint, messages) in messages_by_ep.values():
-        print(endpoint)
+        #print(endpoint)
         G.add_node(endpoint)
 
         for message in messages:
@@ -283,12 +283,13 @@ def jsonify(graph, focal_endpoint, cliques, is_display_fringe_edges = True):
                 emails_to_focal = graph[node][focal_endpoint]['weight']
             else:
                 emails_to_focal = 0
-
-            node_tooltip = "<br>".join([node.names[0], "Total sent emails: " + str(node_weight),
-                                    "   Emails from focal: " + str(graph[focal_endpoint][node]['weight']),
-                                    "   Emails to focal: " + str(emails_to_focal)])
-            logging.debug('Creating node with tooltip %s', node_tooltip)
-            
+            try:
+                node_tooltip = "<br>".join([node.names[0], "Total sent emails: " + str(node_weight),
+                                        "   Emails from focal: " + str(graph[focal_endpoint][node]['weight']),
+                                        "   Emails to focal: " + str(emails_to_focal)])
+                logging.debug('Creating node with tooltip %s', node_tooltip)
+            except TypeError:
+                logging.error("Can't create tooltip for node %s", node.address)    
             #duplicate initials code until mbox with initials is generated
             node_initials = ("".join([ele[0] for ele in node.address.split(".")[:-1] if ele])).upper()
             node_edge_weight = edge_weight_coef * (graph[focal_endpoint][node]['weight'] - min_focal_node_weight) + min_edge_weight
@@ -357,7 +358,7 @@ def build_and_analyze(messages, visualize=False, watson_filename=None, json_file
     #celeste.roberts@enron.com has 489 neighbors
     #william.kelly@enron.com has 9 neighbors
     #'kristin.walsh@enron.com'
-    person_email = 'kristin.walsh@enron.com'
+    person_email = 'edwinlohmann@gmail.com'
     person_endpoint = [node for node in full_graph.nodes if node.address == person_email][0]
     personal_graph = build_personal_graph(full_graph, person_endpoint)
     
