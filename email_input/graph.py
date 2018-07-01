@@ -261,8 +261,9 @@ def jsonify(graph, focal_endpoint, cliques, is_display_fringe_edges = True):
 
     #create groups
     data["groups"] = {
-                      "defaultGroup": {"color": {"background": "#97C2FCFF", "border":"97C2FCFF"}, "borderWidth":0},
-                      "inactiveGroup": {"color": {"background": "#97C2FC88", "border":"97C2FC88"}, "borderWidth":0}
+                      "defaultGroup": {"color": {"background": "#97C2FC", "border":"#72acf9"}, "borderWidth":1},
+                      "inactiveGroup": {"font": {"color": "#b3b3b5"}, "color": {"background": "#edf3ff", "border":"#ccdbf9"}, "borderWidth":1},
+                      "focalNode": {"color": {"background": "#3cdb34", "border":"#008720"}, "borderWidth":1}
                      }
 
     #duplicate initials code until mbox with initials is generated
@@ -270,7 +271,7 @@ def jsonify(graph, focal_endpoint, cliques, is_display_fringe_edges = True):
     focal_endpoint_initials = ("".join([ele[0] for ele in 
                                focal_endpoint.address.split(".")[:-1] if ele])).upper()
     focal_endpoint_dict = {"id": focal_endpoint.address, "label": focal_endpoint_initials, 
-                           "shape": "circle", "color":"#7BE141", "title": focal_endpoint_tooltip}
+                           "shape": "circle", "group": "focalNode", "title": focal_endpoint_tooltip}
 
     for i, clique_def in enumerate(data["cliqueDefinitions"]):
             focal_endpoint_dict[clique_def["name"]] = focal_endpoint in cliques[i]

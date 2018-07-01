@@ -96,6 +96,7 @@ function readTextFile(file) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 function updateGroupVisualization() {
     network.redraw();
+    updateNodes();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -156,7 +157,6 @@ function buildCheckboxes(cd) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 function updateBorders(ctx) {
     let nodeArray = nodes.get();
-    console.log("updateBorders")
     let isSegmented = document.getElementById('segmented').checked;
     
     for (element in nodeArray) {
@@ -182,7 +182,7 @@ function updateBorders(ctx) {
         let drawLength = arcLength;
         let arcStart = 0;
         let radius = 18;
-
+        let isSomethingHighlighted = false;
         if (isSegmented) {
             arcLength = arcLength/activeGroups;
             drawLength = arcLength-step;
@@ -194,7 +194,7 @@ function updateBorders(ctx) {
                 if (node[key] && checkbox.checked) {
                     ctx.beginPath();
                     ctx.strokeStyle = checkbox.value;
-                    console.log(checkbox.value)
+                    
                     ctx.lineWidth = 4;
                     ctx.arc(nodePosition[node.id].x, nodePosition[node.id].y, radius, arcStart, arcStart+drawLength);
                     ctx.stroke();
@@ -209,17 +209,52 @@ function updateBorders(ctx) {
                     }
                 }
             }
+
+            
         }
         
+    }
+}
 
-        /*if (blueCheckbox.checked || redCheckbox.checked || greenCheckbox.checked) {
-            if (!isInGroup) {
-                nodes.update({"id":node.id, "group": "inactiveGroup"});
+////////////////////////////////////////////////////////////////////////////////////////////////////
+function updateNodes() {
+    activeNodes = []
+    inactiveNodes = []
+    let nodeArray = nodes.get();
+    for (element in nodeArray) {
+        let node = nodeArray[element];
+        let isActive = false;
+
+        for (key in node) {
+            if (key.startsWith("_")) {
+                let checkbox = document.getElementById(key);
+                if (node[key] && checkbox.checked) {
+                    isActive = true;
+                    if (node.group != "focalNode") {
+                        activeNodes.push(node.id);
+                    }   
+                    break;
+                } 
             }
-        } else {
-            nodes.update({"id":node.id, "group": "defaultGroup"});
+        }  
+        if (!isActive) {
+            inactiveNodes.push(node.id);
+        }  
+    }
 
-        }*/
+    if (activeNodes.length > 0) {
+        for (i = 0; i < activeNodes.length; i++) {
+            nodes.update({"id":activeNodes[i], "group": "defaultGroup"});
+        }
 
+        for (i = 0; i < inactiveNodes.length; i++) {
+            nodes.update({"id":inactiveNodes[i], "group": "inactiveGroup"});
+        }
+    } else {
+        for (i = 0; i < nodeArray.length; i++) {
+            if (nodeArray[i].group != "focalNode") {
+                nodes.update({"id":nodeArray[i].id, "group": "defaultGroup"});
+            }
+        }
     }
 }
