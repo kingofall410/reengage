@@ -4,6 +4,7 @@ import random
 import logging
 import operator
 import pickle
+import datetime
 from util import filter, progress
 import dateutil.parser
 import datetime
@@ -105,7 +106,10 @@ def parse(infile, outfile):
             if not id:
                 logging.warning("------No message ID found: %s", str(message))
 
-            sender_add, sender_name = parse_endpoints(message['From'])
+            try:
+                sender_add, sender_name = parse_endpoints(message['From'])
+            except TypeError:
+                print(message['From]'])
             recipients_add, recipients_name = parse_endpoints(message['To'])
             xfrom_name = parse_xfrom(message['X-From'])
             xto_names = parse_xto(message['X-To'])
