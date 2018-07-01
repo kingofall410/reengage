@@ -33,7 +33,7 @@ function buildGraph(importData) {
         },
         
     };
-
+    
     options["groups"] = importData.groups;
     
     console.log(options)

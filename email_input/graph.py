@@ -179,9 +179,10 @@ def find_cliques(full_graph, threshhold = 100):
     
     return cliques, biggest_clique
 ###################################################################################################   
-def find_cliques_replies_to_all(messages_by_ep, threshhold = 1):
+def find_cliques_replies_to_all(messages_by_ep, graph_clique_creation_filter = {'min_clique_bidirectional_comm': 1}):
     #['eric.bass@enron.com', 'brian.hoskins@enron.com', 'lenine.jeganathan@enron.com', 'hector.campos@enron.com'] => weight 6
     #['leslie.hansen@enron.com', 'tana.jones@enron.com'] => weight 132
+    min_clique_bidirectional_comm = graph_clique_creation_filter.get('min_clique_bidirectional_comm', 1)
     cliquedict = {}
     for (endpoint, messages) in messages_by_ep.values():
         logging.debug('Endpoint %s', endpoint.address)
@@ -225,14 +226,17 @@ def out_to_json(filename):
             json.dump(data, outfile)
     
 ###################################################################################################
-def jsonify(graph, focal_endpoint, cliques, is_display_fringe_edges = True):
-    #list of things that are filtered out:
-    #   edges to self (emails to self)
-    #
+def jsonify(graph, focal_endpoint, cliques, filter_dict):
     global data
+    #read filterset
+    draw_edges_to_self = filter_dict.get('draw_edges_to_self', False)
+    max_nodes = filter_dict.get('max_nodes', 100)
+    is_display_fringe_edges = filter_dict.get('is_display_fringe_edges', False)
+  
     logging.debug('JSONing a graph with %s nodes', len(graph[focal_endpoint]))
     weight_list = [graph[focal_endpoint][neighb]['weight'] for neighb in graph[focal_endpoint] if neighb != focal_endpoint]
     focal_node_weight = sum(weight_list)
+    
     #making sure that we scale the edge weights correctly
     min_focal_node_weight = min(weight_list)
     max_focal_node_weight = max(weight_list)
@@ -247,7 +251,6 @@ def jsonify(graph, focal_endpoint, cliques, is_display_fringe_edges = True):
                     str(focal_node_weight), str(min_focal_node_weight), str(max_focal_node_weight))
 
     #create focal node
-
     focal_endpoint_tooltip = focal_endpoint.names[0] + "<br>Total sent emails: " + str(focal_node_weight)
     logging.debug('Creating node with tooltip %s', focal_endpoint_tooltip)
     
@@ -264,12 +267,21 @@ def jsonify(graph, focal_endpoint, cliques, is_display_fringe_edges = True):
                       "defaultGroup": {"color": {"background": "#97C2FCFF", "border":"97C2FCFF"}, "borderWidth":0},
                       "inactiveGroup": {"color": {"background": "#97C2FC88", "border":"97C2FC88"}, "borderWidth":0}
                      }
+    
+    #select the top max_nodes nodes to display
+    node_list = [node for node in graph[focal_endpoint]]
+    sorted_node_list = sorted(node_list, key = lambda x: graph.get_edge_data(x, focal_endpoint, default={'weight': 0})['weight'] + graph.get_edge_data(focal_endpoint, x, default={'weight': 0})['weight'], reverse = True)[:max_nodes]
 
-    #duplicate initials code until mbox with initials is generated
+    #clique names, put anything you want in here, begin the string with an underscore, make sure they're unique
+    group_name_list = []
+    #filter cliques to only use nodes in the top max_nodes of nodes (the nodes that are displayed)
 
-    focal_endpoint_initials = ("".join([ele[0] for ele in 
-                               focal_endpoint.address.split(".")[:-1] if ele])).upper()
-    focal_endpoint_dict = {"id": focal_endpoint.address, "label": focal_endpoint_initials, 
+    filtered_cliques = [clique for clique in cliques if clique < set(sorted_node_list)]
+    for (i, clique_iter) in enumerate(filtered_cliques):
+        group_name_list.append("_Clique "+ str(i) + ": " + " ;".join([node.address for node in clique_iter]))
+        
+    focal_endpoint_dict = {"id": focal_endpoint.address, "label": focal_endpoint.initials, 
+
                            "shape": "circle", "color":"#7BE141", "title": focal_endpoint_tooltip}
 
     for i, clique_def in enumerate(data["cliqueDefinitions"]):
@@ -279,7 +291,7 @@ def jsonify(graph, focal_endpoint, cliques, is_display_fringe_edges = True):
         data["nodes"].append(focal_endpoint_dict)   
     
     #draw other nodes
-    for i,node in enumerate(graph[focal_endpoint]):
+    for i,node in enumerate(sorted_node_list):
         if node.address != focal_endpoint.address:
             nr_nodes = len(graph[focal_endpoint])
             node_weight = sum([graph[node][neighb]['weight'] for neighb in graph[node] if neighb != node])
@@ -288,12 +300,13 @@ def jsonify(graph, focal_endpoint, cliques, is_display_fringe_edges = True):
                 emails_to_focal = graph[node][focal_endpoint]['weight']
             else:
                 emails_to_focal = 0
-
-            node_tooltip = "<br>".join([node.names[0], "Total sent emails: " + str(node_weight),
-                                    "   Emails from focal: " + str(graph[focal_endpoint][node]['weight']),
-                                    "   Emails to focal: " + str(emails_to_focal)])
-            logging.debug('Creating node with tooltip %s', node_tooltip)
-            
+            try:
+                node_tooltip = "<br>".join([node.names[0], "Email: " + node.address, "Total sent emails: " + str(node_weight),
+                                        "   Emails from focal: " + str(graph[focal_endpoint][node]['weight']),
+                                        "   Emails to focal: " + str(emails_to_focal)])
+                logging.debug('Creating node with tooltip %s', node_tooltip)
+            except TypeError:
+                logging.error("Can't create tooltip for node %s", node.address)    
             #duplicate initials code until mbox with initials is generated
             node_initials = ("".join([ele[0] for ele in node.address.split(".")[:-1] if ele])).upper()
             node_edge_weight = edge_weight_coef * (graph[focal_endpoint][node]['weight'] - min_focal_node_weight) + min_edge_weight
@@ -309,12 +322,12 @@ def jsonify(graph, focal_endpoint, cliques, is_display_fringe_edges = True):
                 data["nodes"].append(node_dict)
 
     #create edges, only the ones from the focal
-    for (i,neighbor) in enumerate(graph[focal_endpoint]):
+    for (i,neighbor) in enumerate(sorted_node_list):
         #random limit
         if (i >= 1000):
             break
 
-        if node != focal_endpoint:
+        if draw_edges_to_self or node != focal_endpoint:
             edge_weight = edge_weight_coef * (graph[focal_endpoint][neighbor]['weight'] - min_focal_node_weight) + min_edge_weight
             logging.debug('Drawing edge from %s to %s with width %s', focal_endpoint.address, neighbor.address, edge_weight)
             data["edges"].append({"from":focal_endpoint.address, "to":neighbor.address, "color": {"color": "#97C2FC", "inherit": 'false'}, "arrows": "to",
@@ -324,14 +337,14 @@ def jsonify(graph, focal_endpoint, cliques, is_display_fringe_edges = True):
     
     #create the other edges, but keep them at width min_edge_weight for now
     if is_display_fringe_edges:
-        for node in graph:
+        for node in sorted_node_list:
             if node != focal_endpoint:
                 for (i,neighbor) in enumerate(graph[node]):
                     #random limit
                     if (i >= 1000):
                         break
 
-                    if neighbor != node:
+                    if (neighbor in sorted_node_list) and (draw_edges_to_self or neighbor != node):
                         edge_weight = min_edge_weight
                         logging.debug('Drawing edge from %s to %s with width %s', node.address, neighbor.address, edge_weight)
                         data["edges"].append({"from":node.address, "to":neighbor.address, "arrows": "to",
@@ -342,13 +355,18 @@ def jsonify(graph, focal_endpoint, cliques, is_display_fringe_edges = True):
 def build_and_analyze(messages, visualize=False, watson_filename=None, json_filename=None):
     print('Progress | Start analyze')
     logging.info("Messages: %s", str(len(messages)))
+    
+    #filtersets that I'll use everywhere to filter stuff out to consolidate all filtering
+    graph_clique_creation_filter = {'min_clique_bidirectional_comm': 1}
+    graph_visual_filter = {'max_nodes': 100 , 'is_display_fringe_edges': True, 'draw_edges_to_self': False}
+    
     full_graph = build_graph(messages, False)
     for node in full_graph:
         logging.debug('%s has %s neighbors', node.address, len(full_graph[node]))
     
     basic_graph_stats(full_graph)
     top_communicators(full_graph)
-    new_cliques = find_cliques_replies_to_all(messages)
+    new_cliques = find_cliques_replies_to_all(messages, graph_clique_creation_filter)
     sorted_cliques = sorted(new_cliques, key=new_cliques.get, reverse = True)
     biggest_clique = sorted_cliques[0]
     #for testing purposes, the following people are interesting:
@@ -356,14 +374,15 @@ def build_and_analyze(messages, visualize=False, watson_filename=None, json_file
     #celeste.roberts@enron.com has 489 neighbors
     #william.kelly@enron.com has 9 neighbors
     #'kristin.walsh@enron.com'
+
     person_email = 'keith.holst@enron.com'
     person_endpoint = [node for node in full_graph.nodes if node.address == person_email][0]
     personal_graph = build_personal_graph(full_graph, person_endpoint)
     
     for cliq in sorted_cliques:
         logging.debug("Clique: %s with weight %s", [x.address for x in cliq], new_cliques[cliq])
-    focal_cliques = [cliq for cliq in new_cliques.keys() if person_endpoint in cliq]    
-    jsonify(personal_graph, person_endpoint, focal_cliques, False)
+    focal_cliques = [cliq for cliq in sorted_cliques if person_endpoint in cliq]     #new_cliques.keys()
+    jsonify(personal_graph, person_endpoint, focal_cliques, graph_visual_filter)
     out_to_json(json_filename)
 
 
