@@ -268,8 +268,11 @@ def jsonify(graph, focal_endpoint, cliques, filter_dict):
     filtered_cliques = [clique for clique in cliques if clique < set(sorted_node_list)]
     for (i, clique_iter) in enumerate(filtered_cliques):
         group_name_list.append("_Clique "+ str(i) + ": " + " ;".join([node.address for node in clique_iter]))
-        
-    focal_endpoint_dict = {"id": focal_endpoint.address, "label": focal_endpoint.initials, 
+    
+    
+    #duplicate initials code until mbox with initials is generated
+    focal_endpoint_initials = ("".join([ele[0] for ele in focal_endpoint.address.split(".")[:-1] if ele])).upper()    
+    focal_endpoint_dict = {"id": focal_endpoint.address, "label": focal_endpoint_initials, 
                            "shape": "circle", "color":"#7BE141", "title": focal_endpoint_tooltip}
 
     for i, group_name in enumerate(group_name_list):
@@ -300,7 +303,7 @@ def jsonify(graph, focal_endpoint, cliques, filter_dict):
             node_edge_weight = edge_weight_coef * (graph[focal_endpoint][node]['weight'] - min_focal_node_weight) + min_edge_weight
             
 
-            node_dict = {"id": node.address, "label": node_initials, "shape": "circle", 
+            node_dict = {"id": node.address, "label": node.initials, "shape": "circle", 
                         "color":"#97C2FC", "title": node_tooltip, "group": "defaultGroup" }
 
             for i, group_name in enumerate(group_name_list):
