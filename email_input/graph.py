@@ -6,8 +6,10 @@ from collections import defaultdict
 from email_input.models import WordCloud
 from . import watson
 from email_input import models
-
+import nltk
+from bs4 import BeautifulSoup
 import matplotlib.pyplot as plt
+
 
 data = {"nodes": [], "edges": [], "groups": {}, "cliqueDefinitions": []}
 
@@ -147,7 +149,6 @@ def build_unidir_graph(full_graph, two_way_email_threshold):
 
 ###################################################################################################
 def extract_sender_messages(graph_group, messages_by_ep):
-    print(type(graph_group))
     group_messages = dict()
 
     for sender in graph_group:
@@ -302,7 +303,9 @@ def jsonify(vis_graph, focal_endpoint, filtered_cliques, unsorted_clique_dicts):
     sorted_cliques = sorted(list(unsorted_clique_dicts.keys()), key=lambda x: unsorted_clique_dicts[x]['value'], reverse = True)
     data["cliqueDefinitions"] = [{
                 "name": "_Clique "+str(i),
-                "description": unsorted_clique_dicts[sorted_cliques[i]]['information_text'] + "\n" + ", ".join(unsorted_clique_dicts[sorted_cliques[i]]['wordcloud'])
+                "description": "Sentiment: " + str(unsorted_clique_dicts[sorted_cliques[i]]['sentiment']) + "|"
+                                    + unsorted_clique_dicts[sorted_cliques[i]]['information_text'] + "\n "
+                                    + unsorted_clique_dicts[sorted_cliques[i]]['wordcloud']
             } for i in range(len(sorted_cliques))]
     
     group_name_list = []
@@ -336,7 +339,6 @@ def jsonify(vis_graph, focal_endpoint, filtered_cliques, unsorted_clique_dicts):
 def build_and_analyze(messages, visualize=False, watson_filename=None, json_filename=None):
     print('Progress | Start analyze')
     logging.info("Messages: %s", str(len(messages)))
-    
     #filtersets that I'll use everywhere to filter stuff out to consolidate all filtering
     graph_clique_creation_filter = {'min_clique_bidirectional_comm': 1}
     graph_visual_filter = {'max_nodes': 100 , 'is_display_fringe_edges': True, 'draw_edges_to_self': False}
@@ -348,10 +350,6 @@ def build_and_analyze(messages, visualize=False, watson_filename=None, json_file
     basic_graph_stats(full_graph)
     top_communicators(full_graph)
     cliques = find_cliques_replies_to_all(messages, graph_clique_creation_filter)
-    #for cliq in cliques:
-    #    logging.debug("Cliq in clique, type: %s", type(cliq))
-    #    logging.debug("Cliq members: %s, with value %s", ",".join([x.address for x in cliq]), cliques[cliq]['value'])
-
     #sorted_cliques is a list of just the keys sorted by value.
     sorted_cliques = sorted(list(cliques.keys()), key= lambda x: cliques[x]['value'], reverse = True)
     for cliq_item in sorted_cliques:
@@ -361,31 +359,32 @@ def build_and_analyze(messages, visualize=False, watson_filename=None, json_file
     #keith.holst@enron.com has 22 neighbors
     #celeste.roberts@enron.com has 489 neighbors
     #william.kelly@enron.com has 9 neighbors
-    #'kristin.walsh@enron.com'
-
-    person_email = 'edwinlohmann@gmail.com'
+    person_email = 'keith.holst@enron.com'
     focal_endpoint = [node for node in full_graph.nodes if node.address == person_email][0]
     personal_graph = build_personal_graph(full_graph, focal_endpoint)
-
-    focal_cliques = {k: v for k, v in cliques.items() if focal_endpoint in k}
-    # for cliq in focal_cliques:
-    #    logging.debug("Cliq in focal clique, type: %s", type(cliq))
-    #    logging.debug("Focal Cliq members: %s, with value %s", ",".join([x.address for x in cliq]), focal_cliques[cliq]['value'])
-    
+    focal_cliques = {k: v for k, v in cliques.items() if focal_endpoint in k}    
     vis_graph, filtered_cliques, clique_dicts = prepare_graph_for_visualization(personal_graph, focal_endpoint, focal_cliques, graph_visual_filter)
-    wordclouded_focal_cliques = set_wordcloud_for_clique(messages, clique_dicts, 3)
-    jsonify(vis_graph, focal_endpoint, filtered_cliques, wordclouded_focal_cliques)
+    add_wordcloud_to_cliques(messages, clique_dicts, word_count = 5, filter_tags = {"NOUN", "ADJ", "ADV"})
+    jsonify(vis_graph, focal_endpoint, filtered_cliques, clique_dicts)
     out_to_json(json_filename)
 
 ###################################################################################################
-def set_wordcloud_for_clique(messages, cliques, word_count):
+def add_wordcloud_to_cliques(messages, cliques, word_count = 10, filter_tags = {"ADJ", "ADP", "ADV", "CONJ", "DET", "NOUN", "NUM", "PRT", "PRON", "VERB", "X"}):
     for clique in cliques:
+        print("Analyzing clique " + ",".join([w.address for w in clique]))
         group_messages = extract_sender_messages(clique, messages)
-        messagestring = "|".join(["|".join([i.body for i in m]) for m in group_messages.values()])
-        cloud = WordCloud(messagestring)
-        print(cloud.topX(10))
-        cliques[clique]['wordcloud'] = ",".join(cloud.topX(word_count))
-    return cliques
+        messagestring = ".".join([".".join([preprocess_message_body(i.body) for i in m]) for m in group_messages.values()])
+        tagged_list = nltk.tag.pos_tag(nltk.tokenize.word_tokenize(messagestring), tagset = "universal", lang = "eng")
+        filtered_tagged_list = [(w,t) for (w,t) in tagged_list if t in filter_tags and w.isalpha()
+                        #TODO: this probably isn't the right place to filter out thesese items.
+                        #filtering out first names/last names (using the email address) and filtering out common words
+                        and not any([w.lower() in person.address.lower() for person in clique])
+                        and not any([w.lower() in word for word in {"https", "test", "am", "pm", "google", "jabber", "xmlns"}])]
+        cliques[clique]['sentiment'] = sentiment(filtered_tagged_list)
+        tag_fd = nltk.FreqDist(filtered_tagged_list)
+        most_common = tag_fd.most_common(10)
+        cliques[clique]['wordcloud'] = ", ".join([w[0] for (w,t) in most_common])
+        
 
 ###################################################################################################
 def build_personal_graph(full_graph, person):
@@ -394,4 +393,45 @@ def build_personal_graph(full_graph, person):
     neighb.append(person)
     personal_graph = full_graph.subgraph(neighb)
     return personal_graph
-    
+
+###################################################################################################
+def preprocess_message_body(message):
+    #Strip out html
+    #Strip out common words
+    logging.debug('Preprocessing raw message: %s', message)
+    common_words = nltk.corpus.stopwords.words('english')
+    processed_message = [word for word in nltk.word_tokenize(BeautifulSoup(message, "lxml").get_text()) if (not word in common_words)]
+    logging.debug('Preprocessing results in message: %s', processed_message)
+    #for now putting it back together as a string.
+    return " ".join(processed_message)
+
+def get_wordnet_pos(treebank_tag):
+    if treebank_tag == 'ADJ':
+        return nltk.corpus.wordnet.ADJ
+    elif treebank_tag =='VERB':
+        return nltk.corpus.wordnet.VERB
+    elif treebank_tag == 'NOUN':
+        return nltk.corpus.wordnet.NOUN
+    elif treebank_tag == 'ADV':
+        return nltk.corpus.wordnet.ADV
+    else:
+        return ''
+
+def sentiment(tagged_words):
+    lemmatizer = nltk.stem.WordNetLemmatizer()
+    sentiment = 0.0
+    nr_sentiment = 0
+    for word, tag in tagged_words:
+            wn_tag = get_wordnet_pos(tag)
+            if wn_tag in (nltk.corpus.wordnet.NOUN, nltk.corpus.wordnet.ADJ, nltk.corpus.wordnet.ADV):
+                lemma = lemmatizer.lemmatize(word, pos=wn_tag)
+                if lemma:    
+                    synsets = nltk.corpus.wordnet.synsets(lemma, pos=wn_tag)
+                    if synsets:
+                        #Take the most common meaning of the word, and determine the sentiment of it.
+                        swn_synset = nltk.corpus.sentiwordnet.senti_synset(synsets[0].name())
+                        logging.debug("pos/neg score of %s: %s & %s", synsets[0].name(), swn_synset.pos_score(), swn_synset.neg_score() )
+                        sentiment += swn_synset.pos_score() - swn_synset.neg_score()
+                        #Count number of items that have sentiment to get to an average score
+                        nr_sentiment = nr_sentiment + 1
+    return (sentiment / nr_sentiment)

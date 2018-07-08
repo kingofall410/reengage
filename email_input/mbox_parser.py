@@ -131,10 +131,14 @@ def parse(infile, outfile):
 
                 try:
                     date = dateutil.parser.parse(message['Date'])
-                except (ValueError):
+                except (ValueError, TypeError):
                     date = datetime.date(1900, 1, 1)
 
-                body = ""#message.get_payload() -- commented out to get gmail working
+                
+                body = message.get_payload()
+                while type(body) != str:
+                   body = body[0].get_payload()
+
                 sender_tuple[0].update_wordcloud(body)
 
                 mess = Message(id=id, sender=sender_tuple[0], subject=subject, datetime=date, 
